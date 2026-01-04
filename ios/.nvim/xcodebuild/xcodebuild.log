@@ -1,0 +1,25 @@
+note: Building targets in dependency order
+note: Target dependency graph (1 target)
+[Veritas] Processing empty-Veritas.plist
+[Veritas] Compiling ProfilePage.swift
+[Veritas] Compiling SearchPage.swift
+[Veritas] Compiling MainTabView.swift
+[Veritas] Copy arm64-apple-ios-simulator.swiftsourceinfo -> Veritas.swiftsourceinfo
+[Veritas] Copy arm64-apple-ios-simulator.swiftmodule -> Veritas.swiftmodule
+[Veritas] Copy arm64-apple-ios-simulator.abi.json -> Veritas.abi.json
+[Veritas] Linking Veritas.debug.dylib
+note: Using stub executor library with Swift entry point. (in target 'Veritas' from project 'Veritas')
+[Veritas] Linking Veritas
+[Veritas] Extract App Intents Metadata
+Signing Veritas.debug.dylib (in target 'Veritas' from project 'Veritas')
+Signing __preview.dylib (in target 'Veritas' from project 'Veritas')
+Signing Veritas.app (in target 'Veritas' from project 'Veritas')
+[Veritas] Validate Veritas.app
+Build Succeeded
+
+-----------------------------
+-- xcodebuild.nvim summary --
+-----------------------------
+
+  ✔ Build Succeeded
+

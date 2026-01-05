@@ -1,2 +1,3 @@
-# news-app
-It is an app for reading news
+# Veritas 
+It is a news-reading app for many people, who doesn't believe into the media anymore.
+It is built for double-checking the news.

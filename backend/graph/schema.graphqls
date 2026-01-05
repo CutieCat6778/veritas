@@ -4,6 +4,8 @@
 
 scalar Time
 scalar StringArray
+scalar Language
+scalar GormModel 
 
 enum UserRole {
   ADMIN
@@ -24,21 +26,37 @@ enum Source {
 type Article {
   id: ID!
   title: String!
-  source: Source! 
+  source: Source!
   publishedAt: Time!
   uri: String!
   views: Int!
   description: String!
   banner: String!
-  linkedTo: StringArray
+  linkedTo: [Article]
   category: StringArray
+  language: Language!
+  keywords: [KeyWords]
+}
+
+type KeyWords {
+  keyword: String!
+  lastUpdate: Time!
+  articles: [Article]
+}
+
+type ResponseKeyWords {
+  id: ID!
+  keyword: String!
+  lastUpdate: Time!
+  articles: [Article]!
 }
 
 type Query {
   articles: [Article]!
-  topArticles(amount: Int!): [Article!]! 
+  topArticles(amount: Int!): [Article]! 
   linkedArticles(id: ID!): [Article]!
   article(id: ID!): Article 
-  recentArticle(amount: Int!): [Article!]! 
-  batchFindArticles(ids: [ID]!): [Article!]!
+  recentArticle(amount: Int!): [Article]! 
+  batchFindArticles(ids: [ID]!): [Article]!
+  keywords: [ResponseKeyWords]!
 }

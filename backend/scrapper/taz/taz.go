@@ -3,11 +3,10 @@ package taz
 import (
 	"encoding/xml"
 	"fmt"
-	"io"
-	"net/http"
+	"news-swipe/backend/graph/model"
+	"news-swipe/backend/scrapper/common"
 	"strings"
 	"time"
-	"news-swipe/backend/graph/model"
 )
 
 // RSS feed structures
@@ -40,33 +39,11 @@ type MediaContent struct {
 
 // ScrapeTazRSS fetches and processes the TAZ.de RSS feed
 func Scrape() ([]model.Article, error) {
-	rssURL := "https://taz.de/!p4608;rss/"
-	// Fetch RSS feed
-	resp, err := http.Get(rssURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Read response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse RSS feed
 	var rss RSS
-	err = xml.Unmarshal(body, &rss)
-	if err != nil {
+	if err := common.FetchRSSFeed("https://taz.de/!p4608;rss/", &rss); err != nil {
 		return nil, err
 	}
-
-	// Convert to Article structs
-	articles, err := parseRSStoArticles(rss)
-	if err != nil {
-		return nil, err
-	}
-	return articles, nil 
+	return parseRSStoArticles(rss)
 }
 
 func parseRSStoArticles(rss RSS) ([]model.Article, error) {
@@ -93,10 +70,8 @@ func parseRSStoArticles(rss RSS) ([]model.Article, error) {
 		}
 
 		// Clean up CDATA and extra whitespace
-		title := strings.TrimSpace(strings.ReplaceAll(item.Title, "<![CDATA[", ""))
-		title = strings.TrimSpace(strings.ReplaceAll(title, "]]>", ""))
-		description := strings.TrimSpace(strings.ReplaceAll(item.Description, "<![CDATA[", ""))
-		description = strings.TrimSpace(strings.ReplaceAll(description, "]]>", ""))
+		title := common.CleanCDATA(item.Title)
+		description := common.CleanCDATA(item.Description)
 
 		// Remove trailing <a href...> link from description
 		if idx := strings.Index(description, "<a href"); idx != -1 {
@@ -114,6 +89,12 @@ func parseRSStoArticles(rss RSS) ([]model.Article, error) {
 		// TAZ.de RSS does not provide categories or authors
 		categories := []string{}
 
+		// Get URI with bounds checking to prevent panic
+		uri := ""
+		if len(item.Link) > 0 {
+			uri = item.Link[0]
+		}
+
 		// Create Article
 		article := model.Article{
 			GormModel: model.GormModel{
@@ -122,7 +103,7 @@ func parseRSStoArticles(rss RSS) ([]model.Article, error) {
 			Title:       title,
 			Source:      model.SourceTaz, // Assuming SourceTaz is defined in model
 			PublishedAt:   pubDate,
-			URI:         item.Link[0],
+			URI:         uri,
 			Views:       0, // Not provided in RSS feed
 			Description: description,
 			Banner:      banner,

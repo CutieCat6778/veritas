@@ -2,23 +2,26 @@ package graph
 
 import (
 	"context"
-	"gorm.io/gorm"
-	"net/http"
-	"time"
 	"log"
+	"net/http"
+	"news-swipe/backend/utils"
+	"time"
+
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
-	"github.com/landrade/gqlgen-cache-control-plugin/cache"
-	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/go-chi/chi/v5"
+	"github.com/landrade/gqlgen-cache-control-plugin/cache"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/vektah/gqlparser/v2/ast"
+	"gorm.io/gorm"
 )
 
 func InitGraphQL(ctx context.Context, port string, db *gorm.DB) error {
 	resolver := &Resolver{DB: db}
-	c := Config{ Resolvers: resolver }
+	c := Config{Resolvers: resolver}
 
 	router := chi.NewRouter()
 
@@ -40,6 +43,7 @@ func InitGraphQL(ctx context.Context, port string, db *gorm.DB) error {
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", cache.Middleware(srv))
+	http.Handle("/metrics", promhttp.Handler())
 
 	server := &http.Server{
 		Addr: ":" + port,
@@ -57,6 +61,6 @@ func InitGraphQL(ctx context.Context, port string, db *gorm.DB) error {
 	}()
 
 	// Start the server
-	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
+	utils.Log(utils.Server, "GraphQL server starting", "port", port, "playground", "http://localhost:"+port+"/")
 	return server.ListenAndServe()
 }

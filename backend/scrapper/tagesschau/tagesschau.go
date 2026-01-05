@@ -3,12 +3,11 @@ package tagesschau
 import (
 	"encoding/xml"
 	"fmt"
-	"strings"
-	"io"
-	"net/http"
-	"regexp"
-	"time"
 	"news-swipe/backend/graph/model"
+	"news-swipe/backend/scrapper/common"
+	"regexp"
+	"strings"
+	"time"
 )
 
 // RDF represents the root of the RDF/XML feed.
@@ -32,22 +31,9 @@ type Item struct {
 
 // scrapeTagesschau fetches and parses the Tagesschau RDF/XML feed.
 func Scrape() ([]model.Article, error) {
-	// Fetch the XML feed
-	resp, err := http.Get("https://www.tagesschau.de/infoservices/alle-meldungen-100~rdf.xml")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch XML: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// Parse the XML
+	// Fetch and parse the XML feed
 	var rdf RDF
-	err = xml.Unmarshal(body, &rdf)
+	err := common.FetchRSSFeed("https://www.tagesschau.de/infoservices/alle-meldungen-100~rdf.xml", &rdf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal XML: %w", err)
 	}
@@ -70,13 +56,12 @@ func Scrape() ([]model.Article, error) {
 			},
 			Title:       item.Title,
 			Source:      model.SourceTagesschau,
-			PublishedAt:   pubDate,
+			PublishedAt: pubDate,
 			URI:         item.Link,
 			Views:       0, // Not available in XML
 			Description: item.Description,
 			Banner:      banner,
-			LinkedTo: []string{},
-			Category:	[]string{},
+			Category:    []string{},
 		}
 		articles = append(articles, article)
 	}
@@ -95,7 +80,6 @@ func extractImageURL(content string) string {
 	return ""
 }
 
-
 func parsePubDate(pubDate string) (time.Time, error) {
 	// RSS pubDate format: Mon, 05 May 2025 17:19:18 CEST
 	// Convert CEST to a known format
@@ -109,4 +93,3 @@ func parsePubDate(pubDate string) (time.Time, error) {
 
 	return parsedTime, nil
 }
-

@@ -53,6 +53,8 @@ type ComplexityRoot struct {
 		Category    func(childComplexity int) int
 		Description func(childComplexity int) int
 		ID          func(childComplexity int) int
+		Keywords    func(childComplexity int) int
+		Language    func(childComplexity int) int
 		LinkedTo    func(childComplexity int) int
 		PublishedAt func(childComplexity int) int
 		Source      func(childComplexity int) int
@@ -61,13 +63,28 @@ type ComplexityRoot struct {
 		Views       func(childComplexity int) int
 	}
 
+	KeyWords struct {
+		Articles   func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Keyword    func(childComplexity int) int
+		LastUpdate func(childComplexity int) int
+	}
+
 	Query struct {
 		Article           func(childComplexity int, id string) int
 		Articles          func(childComplexity int) int
 		BatchFindArticles func(childComplexity int, ids []*string) int
+		Keywords          func(childComplexity int) int
 		LinkedArticles    func(childComplexity int, id string) int
 		RecentArticle     func(childComplexity int, amount int32) int
 		TopArticles       func(childComplexity int, amount int32) int
+	}
+
+	ResponseKeyWords struct {
+		Articles   func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Keyword    func(childComplexity int) int
+		LastUpdate func(childComplexity int) int
 	}
 }
 
@@ -78,6 +95,7 @@ type QueryResolver interface {
 	Article(ctx context.Context, id string) (*model.Article, error)
 	RecentArticle(ctx context.Context, amount int32) ([]*model.Article, error)
 	BatchFindArticles(ctx context.Context, ids []*string) ([]*model.Article, error)
+	Keywords(ctx context.Context) ([]*model.ResponseKeyWords, error)
 }
 
 type executableSchema struct {
@@ -127,6 +145,20 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Article.ID(childComplexity), true
 
+	case "Article.keywords":
+		if e.complexity.Article.Keywords == nil {
+			break
+		}
+
+		return e.complexity.Article.Keywords(childComplexity), true
+
+	case "Article.language":
+		if e.complexity.Article.Language == nil {
+			break
+		}
+
+		return e.complexity.Article.Language(childComplexity), true
+
 	case "Article.linkedTo":
 		if e.complexity.Article.LinkedTo == nil {
 			break
@@ -169,6 +201,34 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Article.Views(childComplexity), true
 
+	case "KeyWords.articles":
+		if e.complexity.KeyWords.Articles == nil {
+			break
+		}
+
+		return e.complexity.KeyWords.Articles(childComplexity), true
+
+	case "KeyWords.id":
+		if e.complexity.KeyWords.ID == nil {
+			break
+		}
+
+		return e.complexity.KeyWords.ID(childComplexity), true
+
+	case "KeyWords.keyword":
+		if e.complexity.KeyWords.Keyword == nil {
+			break
+		}
+
+		return e.complexity.KeyWords.Keyword(childComplexity), true
+
+	case "KeyWords.lastUpdate":
+		if e.complexity.KeyWords.LastUpdate == nil {
+			break
+		}
+
+		return e.complexity.KeyWords.LastUpdate(childComplexity), true
+
 	case "Query.article":
 		if e.complexity.Query.Article == nil {
 			break
@@ -199,6 +259,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.BatchFindArticles(childComplexity, args["ids"].([]*string)), true
+
+	case "Query.keywords":
+		if e.complexity.Query.Keywords == nil {
+			break
+		}
+
+		return e.complexity.Query.Keywords(childComplexity), true
 
 	case "Query.linkedArticles":
 		if e.complexity.Query.LinkedArticles == nil {
@@ -235,6 +302,34 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.TopArticles(childComplexity, args["amount"].(int32)), true
+
+	case "ResponseKeyWords.articles":
+		if e.complexity.ResponseKeyWords.Articles == nil {
+			break
+		}
+
+		return e.complexity.ResponseKeyWords.Articles(childComplexity), true
+
+	case "ResponseKeyWords.id":
+		if e.complexity.ResponseKeyWords.ID == nil {
+			break
+		}
+
+		return e.complexity.ResponseKeyWords.ID(childComplexity), true
+
+	case "ResponseKeyWords.keyword":
+		if e.complexity.ResponseKeyWords.Keyword == nil {
+			break
+		}
+
+		return e.complexity.ResponseKeyWords.Keyword(childComplexity), true
+
+	case "ResponseKeyWords.lastUpdate":
+		if e.complexity.ResponseKeyWords.LastUpdate == nil {
+			break
+		}
+
+		return e.complexity.ResponseKeyWords.LastUpdate(childComplexity), true
 
 	}
 	return 0, false
@@ -957,9 +1052,9 @@ func (ec *executionContext) _Article_linkedTo(ctx context.Context, field graphql
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(pq.StringArray)
+	res := resTmp.([]*model.Article)
 	fc.Result = res
-	return ec.marshalOStringArray2githubᚗcomᚋlibᚋpqᚐStringArray(ctx, field.Selections, res)
+	return ec.marshalOArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticle(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Article_linkedTo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -969,7 +1064,33 @@ func (ec *executionContext) fieldContext_Article_linkedTo(_ context.Context, fie
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type StringArray does not have child fields")
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Article_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Article_title(ctx, field)
+			case "source":
+				return ec.fieldContext_Article_source(ctx, field)
+			case "publishedAt":
+				return ec.fieldContext_Article_publishedAt(ctx, field)
+			case "uri":
+				return ec.fieldContext_Article_uri(ctx, field)
+			case "views":
+				return ec.fieldContext_Article_views(ctx, field)
+			case "description":
+				return ec.fieldContext_Article_description(ctx, field)
+			case "banner":
+				return ec.fieldContext_Article_banner(ctx, field)
+			case "linkedTo":
+				return ec.fieldContext_Article_linkedTo(ctx, field)
+			case "category":
+				return ec.fieldContext_Article_category(ctx, field)
+			case "language":
+				return ec.fieldContext_Article_language(ctx, field)
+			case "keywords":
+				return ec.fieldContext_Article_keywords(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Article", field.Name)
 		},
 	}
 	return fc, nil
@@ -1011,6 +1132,300 @@ func (ec *executionContext) fieldContext_Article_category(_ context.Context, fie
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type StringArray does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Article_language(ctx context.Context, field graphql.CollectedField, obj *model.Article) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Article_language(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Language, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.Language)
+	fc.Result = res
+	return ec.marshalNLanguage2newsᚑswipeᚋbackendᚋgraphᚋmodelᚐLanguage(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Article_language(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Article",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Language does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Article_keywords(ctx context.Context, field graphql.CollectedField, obj *model.Article) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Article_keywords(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Keywords, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.KeyWords)
+	fc.Result = res
+	return ec.marshalOKeyWords2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐKeyWords(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Article_keywords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Article",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_KeyWords_id(ctx, field)
+			case "keyword":
+				return ec.fieldContext_KeyWords_keyword(ctx, field)
+			case "lastUpdate":
+				return ec.fieldContext_KeyWords_lastUpdate(ctx, field)
+			case "articles":
+				return ec.fieldContext_KeyWords_articles(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KeyWords", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyWords_id(ctx context.Context, field graphql.CollectedField, obj *model.KeyWords) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_KeyWords_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_KeyWords_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyWords",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyWords_keyword(ctx context.Context, field graphql.CollectedField, obj *model.KeyWords) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_KeyWords_keyword(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Keyword, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_KeyWords_keyword(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyWords",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyWords_lastUpdate(ctx context.Context, field graphql.CollectedField, obj *model.KeyWords) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_KeyWords_lastUpdate(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LastUpdate, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_KeyWords_lastUpdate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyWords",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyWords_articles(ctx context.Context, field graphql.CollectedField, obj *model.KeyWords) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_KeyWords_articles(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Articles, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Article)
+	fc.Result = res
+	return ec.marshalOArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticle(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_KeyWords_articles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyWords",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Article_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Article_title(ctx, field)
+			case "source":
+				return ec.fieldContext_Article_source(ctx, field)
+			case "publishedAt":
+				return ec.fieldContext_Article_publishedAt(ctx, field)
+			case "uri":
+				return ec.fieldContext_Article_uri(ctx, field)
+			case "views":
+				return ec.fieldContext_Article_views(ctx, field)
+			case "description":
+				return ec.fieldContext_Article_description(ctx, field)
+			case "banner":
+				return ec.fieldContext_Article_banner(ctx, field)
+			case "linkedTo":
+				return ec.fieldContext_Article_linkedTo(ctx, field)
+			case "category":
+				return ec.fieldContext_Article_category(ctx, field)
+			case "language":
+				return ec.fieldContext_Article_language(ctx, field)
+			case "keywords":
+				return ec.fieldContext_Article_keywords(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Article", field.Name)
 		},
 	}
 	return fc, nil
@@ -1075,6 +1490,10 @@ func (ec *executionContext) fieldContext_Query_articles(_ context.Context, field
 				return ec.fieldContext_Article_linkedTo(ctx, field)
 			case "category":
 				return ec.fieldContext_Article_category(ctx, field)
+			case "language":
+				return ec.fieldContext_Article_language(ctx, field)
+			case "keywords":
+				return ec.fieldContext_Article_keywords(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Article", field.Name)
 		},
@@ -1110,7 +1529,7 @@ func (ec *executionContext) _Query_topArticles(ctx context.Context, field graphq
 	}
 	res := resTmp.([]*model.Article)
 	fc.Result = res
-	return ec.marshalNArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticleᚄ(ctx, field.Selections, res)
+	return ec.marshalNArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticle(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_topArticles(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1141,6 +1560,10 @@ func (ec *executionContext) fieldContext_Query_topArticles(ctx context.Context, 
 				return ec.fieldContext_Article_linkedTo(ctx, field)
 			case "category":
 				return ec.fieldContext_Article_category(ctx, field)
+			case "language":
+				return ec.fieldContext_Article_language(ctx, field)
+			case "keywords":
+				return ec.fieldContext_Article_keywords(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Article", field.Name)
 		},
@@ -1218,6 +1641,10 @@ func (ec *executionContext) fieldContext_Query_linkedArticles(ctx context.Contex
 				return ec.fieldContext_Article_linkedTo(ctx, field)
 			case "category":
 				return ec.fieldContext_Article_category(ctx, field)
+			case "language":
+				return ec.fieldContext_Article_language(ctx, field)
+			case "keywords":
+				return ec.fieldContext_Article_keywords(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Article", field.Name)
 		},
@@ -1292,6 +1719,10 @@ func (ec *executionContext) fieldContext_Query_article(ctx context.Context, fiel
 				return ec.fieldContext_Article_linkedTo(ctx, field)
 			case "category":
 				return ec.fieldContext_Article_category(ctx, field)
+			case "language":
+				return ec.fieldContext_Article_language(ctx, field)
+			case "keywords":
+				return ec.fieldContext_Article_keywords(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Article", field.Name)
 		},
@@ -1338,7 +1769,7 @@ func (ec *executionContext) _Query_recentArticle(ctx context.Context, field grap
 	}
 	res := resTmp.([]*model.Article)
 	fc.Result = res
-	return ec.marshalNArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticleᚄ(ctx, field.Selections, res)
+	return ec.marshalNArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticle(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_recentArticle(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1369,6 +1800,10 @@ func (ec *executionContext) fieldContext_Query_recentArticle(ctx context.Context
 				return ec.fieldContext_Article_linkedTo(ctx, field)
 			case "category":
 				return ec.fieldContext_Article_category(ctx, field)
+			case "language":
+				return ec.fieldContext_Article_language(ctx, field)
+			case "keywords":
+				return ec.fieldContext_Article_keywords(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Article", field.Name)
 		},
@@ -1415,7 +1850,7 @@ func (ec *executionContext) _Query_batchFindArticles(ctx context.Context, field 
 	}
 	res := resTmp.([]*model.Article)
 	fc.Result = res
-	return ec.marshalNArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticleᚄ(ctx, field.Selections, res)
+	return ec.marshalNArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticle(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_batchFindArticles(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1446,6 +1881,10 @@ func (ec *executionContext) fieldContext_Query_batchFindArticles(ctx context.Con
 				return ec.fieldContext_Article_linkedTo(ctx, field)
 			case "category":
 				return ec.fieldContext_Article_category(ctx, field)
+			case "language":
+				return ec.fieldContext_Article_language(ctx, field)
+			case "keywords":
+				return ec.fieldContext_Article_keywords(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Article", field.Name)
 		},
@@ -1460,6 +1899,60 @@ func (ec *executionContext) fieldContext_Query_batchFindArticles(ctx context.Con
 	if fc.Args, err = ec.field_Query_batchFindArticles_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_keywords(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_keywords(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Keywords(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.ResponseKeyWords)
+	fc.Result = res
+	return ec.marshalNResponseKeyWords2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐResponseKeyWords(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_keywords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ResponseKeyWords_id(ctx, field)
+			case "keyword":
+				return ec.fieldContext_ResponseKeyWords_keyword(ctx, field)
+			case "lastUpdate":
+				return ec.fieldContext_ResponseKeyWords_lastUpdate(ctx, field)
+			case "articles":
+				return ec.fieldContext_ResponseKeyWords_articles(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ResponseKeyWords", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -1590,6 +2083,208 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 				return ec.fieldContext___Schema_directives(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Schema", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ResponseKeyWords_id(ctx context.Context, field graphql.CollectedField, obj *model.ResponseKeyWords) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ResponseKeyWords_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ResponseKeyWords_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ResponseKeyWords",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ResponseKeyWords_keyword(ctx context.Context, field graphql.CollectedField, obj *model.ResponseKeyWords) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ResponseKeyWords_keyword(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Keyword, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ResponseKeyWords_keyword(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ResponseKeyWords",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ResponseKeyWords_lastUpdate(ctx context.Context, field graphql.CollectedField, obj *model.ResponseKeyWords) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ResponseKeyWords_lastUpdate(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LastUpdate, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ResponseKeyWords_lastUpdate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ResponseKeyWords",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ResponseKeyWords_articles(ctx context.Context, field graphql.CollectedField, obj *model.ResponseKeyWords) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ResponseKeyWords_articles(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Articles, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Article)
+	fc.Result = res
+	return ec.marshalNArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticle(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ResponseKeyWords_articles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ResponseKeyWords",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Article_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Article_title(ctx, field)
+			case "source":
+				return ec.fieldContext_Article_source(ctx, field)
+			case "publishedAt":
+				return ec.fieldContext_Article_publishedAt(ctx, field)
+			case "uri":
+				return ec.fieldContext_Article_uri(ctx, field)
+			case "views":
+				return ec.fieldContext_Article_views(ctx, field)
+			case "description":
+				return ec.fieldContext_Article_description(ctx, field)
+			case "banner":
+				return ec.fieldContext_Article_banner(ctx, field)
+			case "linkedTo":
+				return ec.fieldContext_Article_linkedTo(ctx, field)
+			case "category":
+				return ec.fieldContext_Article_category(ctx, field)
+			case "language":
+				return ec.fieldContext_Article_language(ctx, field)
+			case "keywords":
+				return ec.fieldContext_Article_keywords(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Article", field.Name)
 		},
 	}
 	return fc, nil
@@ -3609,6 +4304,64 @@ func (ec *executionContext) _Article(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Article_linkedTo(ctx, field, obj)
 		case "category":
 			out.Values[i] = ec._Article_category(ctx, field, obj)
+		case "language":
+			out.Values[i] = ec._Article_language(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keywords":
+			out.Values[i] = ec._Article_keywords(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var keyWordsImplementors = []string{"KeyWords"}
+
+func (ec *executionContext) _KeyWords(ctx context.Context, sel ast.SelectionSet, obj *model.KeyWords) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, keyWordsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("KeyWords")
+		case "id":
+			out.Values[i] = ec._KeyWords_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyword":
+			out.Values[i] = ec._KeyWords_keyword(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastUpdate":
+			out.Values[i] = ec._KeyWords_lastUpdate(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "articles":
+			out.Values[i] = ec._KeyWords_articles(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3780,6 +4533,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "keywords":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_keywords(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -3788,6 +4563,60 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___schema(ctx, field)
 			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var responseKeyWordsImplementors = []string{"ResponseKeyWords"}
+
+func (ec *executionContext) _ResponseKeyWords(ctx context.Context, sel ast.SelectionSet, obj *model.ResponseKeyWords) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, responseKeyWordsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ResponseKeyWords")
+		case "id":
+			out.Values[i] = ec._ResponseKeyWords_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyword":
+			out.Values[i] = ec._ResponseKeyWords_keyword(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastUpdate":
+			out.Values[i] = ec._ResponseKeyWords_lastUpdate(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "articles":
+			out.Values[i] = ec._ResponseKeyWords_articles(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4184,60 +5013,6 @@ func (ec *executionContext) marshalNArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraph
 	return ret
 }
 
-func (ec *executionContext) marshalNArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticleᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Article) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNArticle2ᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticle(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNArticle2ᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticle(ctx context.Context, sel ast.SelectionSet, v *model.Article) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._Article(ctx, sel, v)
-}
-
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v any) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -4308,6 +5083,60 @@ func (ec *executionContext) marshalNInt2int32(ctx context.Context, sel ast.Selec
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNLanguage2newsᚑswipeᚋbackendᚋgraphᚋmodelᚐLanguage(ctx context.Context, v any) (model.Language, error) {
+	res, err := model.UnmarshalLanguage(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNLanguage2newsᚑswipeᚋbackendᚋgraphᚋmodelᚐLanguage(ctx context.Context, sel ast.SelectionSet, v model.Language) graphql.Marshaler {
+	_ = sel
+	res := model.MarshalLanguage(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) marshalNResponseKeyWords2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐResponseKeyWords(ctx context.Context, sel ast.SelectionSet, v []*model.ResponseKeyWords) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOResponseKeyWords2ᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐResponseKeyWords(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNSource2newsᚑswipeᚋbackendᚋgraphᚋmodelᚐSource(ctx context.Context, v any) (model.Source, error) {
@@ -4605,6 +5434,47 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
+func (ec *executionContext) marshalOArticle2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticle(ctx context.Context, sel ast.SelectionSet, v []*model.Article) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOArticle2ᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticle(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
 func (ec *executionContext) marshalOArticle2ᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐArticle(ctx context.Context, sel ast.SelectionSet, v *model.Article) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -4658,6 +5528,61 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 	_ = ctx
 	res := graphql.MarshalID(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOKeyWords2ᚕᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐKeyWords(ctx context.Context, sel ast.SelectionSet, v []*model.KeyWords) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOKeyWords2ᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐKeyWords(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
+func (ec *executionContext) marshalOKeyWords2ᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐKeyWords(ctx context.Context, sel ast.SelectionSet, v *model.KeyWords) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._KeyWords(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOResponseKeyWords2ᚖnewsᚑswipeᚋbackendᚋgraphᚋmodelᚐResponseKeyWords(ctx context.Context, sel ast.SelectionSet, v *model.ResponseKeyWords) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ResponseKeyWords(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {

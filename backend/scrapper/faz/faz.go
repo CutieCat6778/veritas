@@ -2,13 +2,12 @@ package faz
 
 import (
 	"encoding/xml"
-	"io"
 	"fmt"
-	"net/http"
+	"news-swipe/backend/graph/model"
+	"news-swipe/backend/scrapper/common"
 	"regexp"
 	"strings"
 	"time"
-	"news-swipe/backend/graph/model"
 )
 
 // RSS feed structures
@@ -25,14 +24,14 @@ type Channel struct {
 }
 
 type Item struct {
-	Title       string    `xml:"title"`
-	Link        string    `xml:"link"`
-	Description string    `xml:"description"`
-	PubDate     string    `xml:"pubDate"`
-	GUID        string    `xml:"guid"`
-	Categories  []string  `xml:"category"`
-	Creator     string    `xml:"dc:creator"`
-	Media       []Media   `xml:"content"`
+	Title       string   `xml:"title"`
+	Link        string   `xml:"link"`
+	Description string   `xml:"description"`
+	PubDate     string   `xml:"pubDate"`
+	GUID        string   `xml:"guid"`
+	Categories  []string `xml:"category"`
+	Creator     string   `xml:"dc:creator"`
+	Media       []Media  `xml:"content"`
 }
 
 type Media struct {
@@ -45,34 +44,11 @@ type Media struct {
 
 // ScrapeFAZRSS fetches and processes the FAZ.NET RSS feed
 func Scrape() ([]model.Article, error) {
-	rssURL := "https://www.faz.net/rss/aktuell/"
-	// Fetch RSS feed
-	resp, err := http.Get(rssURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Read response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse RSS feed
 	var rss RSS
-	err = xml.Unmarshal(body, &rss)
-	if err != nil {
+	if err := common.FetchRSSFeed("https://www.faz.net/rss/aktuell/", &rss); err != nil {
 		return nil, err
 	}
-
-	// Convert to Article structs
-	articles, err := parseRSStoArticles(rss)
-	if err != nil {
-		return nil, err
-	}
-
-	return articles, nil
+	return parseRSStoArticles(rss)
 }
 
 func parseRSStoArticles(rss RSS) ([]model.Article, error) {
@@ -102,11 +78,8 @@ func parseRSStoArticles(rss RSS) ([]model.Article, error) {
 		}
 
 		// Clean up CDATA and extract description
-		title := strings.TrimSpace(strings.ReplaceAll(item.Title, "<![CDATA[", ""))
-		title = strings.TrimSpace(strings.ReplaceAll(title, "]]>", ""))
-
-		description := strings.TrimSpace(strings.ReplaceAll(item.Description, "<![CDATA[", ""))
-		description = strings.TrimSpace(strings.ReplaceAll(description, "]]>", ""))
+		title := common.CleanCDATA(item.Title)
+		description := common.CleanCDATA(item.Description)
 
 		// Remove HTML tags and image from description
 		re := regexp.MustCompile(`<p><img[^>]+></p>`)
@@ -152,7 +125,6 @@ func parseRSStoArticles(rss RSS) ([]model.Article, error) {
 			Description: description,
 			Banner:      banner,
 			Category:    categories,
-			LinkedTo: []string{},
 		}
 
 		articles = append(articles, article)

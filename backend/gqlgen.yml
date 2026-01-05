@@ -135,9 +135,9 @@ models:
       - github.com/99designs/gqlgen/graphql.Int
       - github.com/99designs/gqlgen/graphql.Int64
       - github.com/99designs/gqlgen/graphql.Int32
-  # gqlgen provides a default GraphQL UUID convenience wrapper for github.com/google/uuid 
+  # gqlgen provides a default GraphQL UUID convenience wrapper for github.com/google/uuid
   # but you can override this to provide your own GraphQL UUID implementation
-      #
+  #
   # The GraphQL spec explicitly states that the Int type is a signed 32-bit
   # integer. Using Go int or int64 to represent it can lead to unexpected
   # behavior, and some GraphQL tools like Apollo Router will fail when
@@ -155,5 +155,11 @@ models:
       - github.com/99designs/gqlgen/graphql.Int
       - github.com/99designs/gqlgen/graphql.Int64
   StringArray:
-    model: 
-      - news-swipe/backend/graph/model.StringArray      
+    model:
+      - news-swipe/backend/graph/model.StringArray
+  Language:
+    model:
+      - news-swipe/backend/graph/model.Language
+  GormModel:
+    model:
+      - news-swipe/backend/graph/model.GormModel

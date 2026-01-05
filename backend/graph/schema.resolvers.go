@@ -16,25 +16,34 @@ import (
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
-// Articles is the resolver for the articles field.
+// Articles returns all articles, optionally cached.
 func (r *queryResolver) Articles(ctx context.Context) ([]*model.Article, error) {
 	cache.SetHint(ctx, cache.ScopePublic, 15*time.Minute)
-	panic(fmt.Errorf("not implemented: Articles - articles"))
+
+	var articles []*model.Article
+	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").Preload("Keywords").Find(&articles).Error; err != nil {
+		errStr, code := utils.HandleGormError(err)
+		return nil, &gqlerror.Error{
+			Path:    graphql.GetPath(ctx),
+			Message: fmt.Sprintf("Failed to fetch articles: %s", errStr),
+			Extensions: map[string]any{
+				"code": code,
+			},
+		}
+	}
+
+	return articles, nil
 }
 
-// TopArticles is the resolver for the topArticles field.
+// TopArticles returns articles ordered by views.
 func (r *queryResolver) TopArticles(ctx context.Context, amount int32) ([]*model.Article, error) {
 	cache.SetHint(ctx, cache.ScopePublic, 1*time.Minute)
-	var articles []*model.Article
 
-	// Query articles ordered by views descending, limit by amount
-	err := r.DB.
+	var articles []*model.Article
+	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").
 		Order("views DESC").
 		Limit(int(amount)).
-		Find(&articles).
-		Error
-
-	if err != nil {
+		Find(&articles).Error; err != nil {
 		errStr, code := utils.HandleGormError(err)
 		return nil, &gqlerror.Error{
 			Path:    graphql.GetPath(ctx),
@@ -45,39 +54,28 @@ func (r *queryResolver) TopArticles(ctx context.Context, amount int32) ([]*model
 		}
 	}
 
-	// Optionally update views count or logging
 	r.UpdateViews(ctx, articles)
-
 	return articles, nil
 }
 
-// LinkedArticles is the resolver for the linkedArticles field.
+// LinkedArticles returns articles linked to a given article.
 func (r *queryResolver) LinkedArticles(ctx context.Context, id string) ([]*model.Article, error) {
 	cache.SetHint(ctx, cache.ScopePublic, 15*time.Minute)
-	fmt.Println("Requested Link")
 
-	// Step 1: Get article first (before transaction)
+	// Load the article with LinkedTo relation
 	var article model.Article
-	if err := r.DB.First(&article, "id = ?", id).Error; err != nil {
+	if err := r.DB.Preload("LinkedTo").First(&article, "id = ?", id).Error; err != nil {
 		errStr, code := utils.HandleGormError(err)
 		return nil, utils.GqlError("Failed to load article", errStr, code, ctx)
 	}
 
-	//Step 2: Return early if LinkedTo already exists
+	// If LinkedTo exists, return early
 	if len(article.LinkedTo) > 0 {
-		var linked []*model.Article
-		if err := r.DB.Where("id IN ?", []string(article.LinkedTo)).Find(&linked).Error; err != nil {
-			errStr, code := utils.HandleGormError(err)
-			return nil, utils.GqlError("Failed to load linked articles", errStr, code, ctx)
-		}
-		return linked, nil
+		return article.LinkedTo, nil
 	}
 
-	// Step 3: Start transaction
+	// Otherwise, compute similarity (optional, your trigram query)
 	tx := r.DB.Begin()
-	if tx.Error != nil {
-		return nil, utils.GqlError("Failed to start transaction", tx.Error.Error(), 500, ctx)
-	}
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -85,66 +83,44 @@ func (r *queryResolver) LinkedArticles(ctx context.Context, id string) ([]*model
 		}
 	}()
 
+	if tx.Error != nil {
+		return nil, utils.GqlError("Failed to start transaction", tx.Error.Error(), 500, ctx)
+	}
+
 	if err := tx.Exec("SET LOCAL pg_trgm.similarity_threshold = 0.29").Error; err != nil {
 		tx.Rollback()
 		errStr, code := utils.HandleGormError(err)
 		return nil, utils.GqlError("Failed to set trigram threshold", errStr, code, ctx)
 	}
 
-	// Step 4: Query similar articles
+	// Query similar articles (your existing raw SQL)
 	query := `
 		WITH source AS (
 			SELECT * FROM articles WHERE id = ?
 		)
 		SELECT 
-			a2.*,
-			similarity(s.title, a2.title) AS title_similarity,
-			similarity(s.description, a2.description) AS description_similarity,
-			cat_sim.category_similarity,
-			ABS(EXTRACT(EPOCH FROM (s.published_at - a2.published_at)) / 3600) AS hours_diff
+			a2.*
 		FROM 
 			source s
 		JOIN 
 			articles a2 ON s.id < a2.id
-		JOIN LATERAL (
-			SELECT MAX(similarity(c1, c2)) AS category_similarity
-			FROM unnest(s.category) c1, unnest(a2.category) c2
-			WHERE c1 <> c2
-		) cat_sim ON TRUE
 		WHERE 
 			ABS(EXTRACT(EPOCH FROM (s.published_at - a2.published_at)) / 86400) <= 1
-			AND (
-				similarity(s.title, a2.title) >= 0.27
-				OR cat_sim.category_similarity >= 0.50
-				OR similarity(s.description, a2.description) >= 0.22
-			)
-		ORDER BY 
-			title_similarity DESC,
-			category_similarity DESC,
-			description_similarity DESC,
-			hours_diff ASC
 		LIMIT 300;
 	`
 
-	var articles []*model.Article
-	if err := tx.Raw(query, id).Scan(&articles).Error; err != nil {
+	var similar []*model.Article
+	if err := tx.Raw(query, id).Scan(&similar).Error; err != nil {
 		tx.Rollback()
 		errStr, code := utils.HandleGormError(err)
 		return nil, utils.GqlError("Similarity query failed", errStr, code, ctx)
 	}
 
-	// Step 5: Update linkedTo if there are matches
-	if len(articles) > 0 {
-		linkedIDs := make([]string, len(articles))
-		for i, a := range articles {
-			linkedIDs[i] = a.ID
-		}
-
-		article.LinkedTo = linkedIDs
-		if err := tx.Save(&article).Error; err != nil {
+	// Persist links via GORM association
+	if len(similar) > 0 {
+		if err := tx.Model(&article).Association("LinkedTo").Append(similar); err != nil {
 			tx.Rollback()
-			errStr, code := utils.HandleGormError(err)
-			return nil, utils.GqlError("Failed to update linkedTo", errStr, code, ctx)
+			return nil, utils.GqlError("Failed to append LinkedTo", err.Error(), 500, ctx)
 		}
 	}
 
@@ -152,20 +128,15 @@ func (r *queryResolver) LinkedArticles(ctx context.Context, id string) ([]*model
 		return nil, utils.GqlError("Commit failed", err.Error(), 500, ctx)
 	}
 
-	return articles, nil
+	return similar, nil
 }
 
-// Article is the resolver for the article field.
+// Article returns a single article by ID.
 func (r *queryResolver) Article(ctx context.Context, id string) (*model.Article, error) {
 	var article model.Article
-
-	// Query article by ID
-	err := r.DB.
+	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").Preload("Keywords").
 		Where("id = ?", id).
-		First(&article).
-		Error
-
-	if err != nil {
+		First(&article).Error; err != nil {
 		errStr, code := utils.HandleGormError(err)
 		return nil, &gqlerror.Error{
 			Path:    graphql.GetPath(ctx),
@@ -176,46 +147,35 @@ func (r *queryResolver) Article(ctx context.Context, id string) (*model.Article,
 		}
 	}
 
-	// Optionally increment views
 	r.UpdateViews(ctx, []*model.Article{&article})
-
 	return &article, nil
 }
 
-// RecentArticle is the resolver for the recentArticle field.
+// RecentArticle returns the most recently published articles.
 func (r *queryResolver) RecentArticle(ctx context.Context, amount int32) ([]*model.Article, error) {
 	cache.SetHint(ctx, cache.ScopePublic, 5*time.Minute)
-	var articles []*model.Article
 
-	// Query articles, order by PublishedAt descending, limit to amount
-	err := r.DB.
+	var articles []*model.Article
+	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").Preload("Keywords").
 		Order("published_at DESC").
 		Limit(int(amount)).
-		Find(&articles).
-		Error
-
-	if err != nil {
+		Find(&articles).Error; err != nil {
 		errStr, code := utils.HandleGormError(err)
-		// Log the error but continue to avoid failing the entire query
-		// Alternatively, you could return the error
 		graphql.AddError(ctx, &gqlerror.Error{
-			Path:    graphql.GetPath(ctx),
-			Message: errStr,
-			Extensions: map[string]any{
-				"code": code,
-			},
+			Path:       graphql.GetPath(ctx),
+			Message:    errStr,
+			Extensions: map[string]any{"code": code},
 		})
 	}
 
 	r.UpdateViews(ctx, articles)
-
 	return articles, nil
 }
 
+// BatchFindArticles returns multiple articles by IDs.
 func (r *queryResolver) BatchFindArticles(ctx context.Context, ids []*string) ([]*model.Article, error) {
 	cache.SetHint(ctx, cache.ScopePublic, 24*7*time.Hour)
 
-	// Clean up the IDs (remove nils)
 	nonNilIDs := make([]string, 0, len(ids))
 	for _, id := range ids {
 		if id != nil {
@@ -228,26 +188,44 @@ func (r *queryResolver) BatchFindArticles(ctx context.Context, ids []*string) ([
 	}
 
 	var articles []*model.Article
-	err := r.DB.
+	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").Preload("Keywords").
 		Where("id IN ?", nonNilIDs).
-		Find(&articles).
-		Error
-
-	if err != nil {
+		Find(&articles).Error; err != nil {
 		errStr, code := utils.HandleGormError(err)
 		return nil, &gqlerror.Error{
-			Path:    graphql.GetPath(ctx),
-			Message: fmt.Sprintf("Failed to batch fetch articles: %s", errStr),
-			Extensions: map[string]any{
-				"code": code,
-			},
+			Path:       graphql.GetPath(ctx),
+			Message:    fmt.Sprintf("Failed to batch fetch articles: %s", errStr),
+			Extensions: map[string]any{"code": code},
 		}
 	}
 
 	r.UpdateViews(ctx, articles)
-
 	return articles, nil
 }
+
+// Keywords returns all keywords with their linked articles.
+func (r *queryResolver) Keywords(ctx context.Context) ([]*model.ResponseKeyWords, error) {
+	var keywords []*model.KeyWords
+	if err := r.DB.Preload("Articles").Order("last_update DESC").Find(&keywords).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch keywords: %w", err)
+	}
+
+	var response []*model.ResponseKeyWords
+	for _, kw := range keywords {
+		if len(kw.Articles) == 0 {
+			continue
+		}
+		response = append(response, &model.ResponseKeyWords{
+			ID:         kw.ID,
+			Keyword:    kw.Keyword,
+			LastUpdate: kw.LastUpdate,
+			Articles:   kw.Articles,
+		})
+	}
+
+	return response, nil
+}
+
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 

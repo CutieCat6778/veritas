@@ -2,7 +2,6 @@ package utils
 
 import (
 	"errors"
-	"log"
 	"context"
 
 	"gorm.io/gorm"
@@ -28,7 +27,7 @@ func HandleGormError(err error) (string, int) {
 	case errors.Is(err, gorm.ErrNotImplemented):
 		return "Operation not supported", 501
 	default:
-		log.Printf("Database error: %v", err)
+		Log(Database, "Unexpected database error", "error", err)
 		return "Internal server error", 500
 	}
 }

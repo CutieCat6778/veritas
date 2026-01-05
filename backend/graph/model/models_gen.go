@@ -15,17 +15,34 @@ import (
 type Article struct {
 	GormModel
 	Title       string         `json:"title"`
-	Source      Source         `json:"source"`
-	PublishedAt time.Time      `json:"publishedAt"`
+	Source      Source         `json:"source" gorm:"index"`
+	PublishedAt time.Time      `json:"publishedAt" gorm:"index"`
 	URI         string         `json:"uri"`
-	Views       int32          `json:"views"`
+	Views       int32          `json:"views" gorm:"index"`
 	Description string         `json:"description"`
 	Banner      string         `json:"banner"`
-	LinkedTo    pq.StringArray `json:"linkedTo,omitempty" gorm:"type:text[]"`
+	LinkedTo    []*Article     `json:"linkedTo,omitempty" gorm:"many2many:article_links;joinForeignKey:ArticleID;joinReferences:LinkedArticleID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Category    pq.StringArray `json:"category,omitempty" gorm:"type:text[]"`
+	Language    Language       `json:"language" gorm:"index"`
+	Keywords    []*KeyWords    `json:"keywords,omitempty" gorm:"many2many:article_keywords;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	LinkedFrom  []*Article     `json:"-" gorm:"many2many:article_links;joinForeignKey:LinkedArticleID;joinReferences:ArticleID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+}
+
+type KeyWords struct {
+	GormModel
+	Keyword    string     `json:"keyword" gorm:"index"`
+	LastUpdate time.Time  `json:"lastUpdate"`
+	Articles   []*Article `json:"articles,omitempty" gorm:"many2many:article_keywords;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 type Query struct {
+}
+
+type ResponseKeyWords struct {
+	ID         string     `json:"id"`
+	Keyword    string     `json:"keyword"`
+	LastUpdate time.Time  `json:"lastUpdate"`
+	Articles   []*Article `json:"articles"`
 }
 
 type Source string

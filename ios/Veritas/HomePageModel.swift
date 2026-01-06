@@ -7,6 +7,8 @@ import Graphql
 protocol HomePageModelProtocol: ObservableObject, AnyObject {
     var articles: [Article] { get }
     var keywords: [Keyword] { get }
+    var isLoadingArticles: Bool { get }
+    var isLoadingKeywords: Bool { get }
     func getRecentArticles(amount: Int)
     func getKeyWords()
 }
@@ -14,6 +16,8 @@ protocol HomePageModelProtocol: ObservableObject, AnyObject {
 final class HomePageModel: HomePageModelProtocol {
     @Published var articles: [Article] = []
     @Published var keywords: [Keyword] = []
+    @Published var isLoadingArticles: Bool = false
+    @Published var isLoadingKeywords: Bool = false
 
     private var articlesTask: Task<Void, Never>?
     private var keywordsTask: Task<Void, Never>?
@@ -35,6 +39,7 @@ final class HomePageModel: HomePageModelProtocol {
 
     func getRecentArticles(amount: Int) {
         articlesTask?.cancel()
+        isLoadingArticles = true
         articlesTask = Task {
             do {
                 let query = GetRecentArticlesQuery(amount: Int32(amount))
@@ -45,15 +50,18 @@ final class HomePageModel: HomePageModelProtocol {
                 if let fetchedData = result.data?.recentArticle {
                     self.articles = fetchedData.compactMap { self.mapToArticle(item: $0) }
                 }
+                self.isLoadingArticles = false
             } catch {
                 guard !Task.isCancelled else { return }
                 print("Error fetching articles: \(error)")
+                self.isLoadingArticles = false
             }
         }
     }
 
     func getKeyWords() {
         keywordsTask?.cancel()
+        isLoadingKeywords = true
         keywordsTask = Task {
             do {
                 let query = GetKeywordsQuery()
@@ -64,9 +72,11 @@ final class HomePageModel: HomePageModelProtocol {
                 if let fetchedData = result.data?.keywords {
                     self.keywords = fetchedData.compactMap { self.mapToKeyword(item: $0) }
                 }
+                self.isLoadingKeywords = false
             } catch {
                 guard !Task.isCancelled else { return }
                 print("Error fetching keywords: \(error)")
+                self.isLoadingKeywords = false
             }
         }
     }

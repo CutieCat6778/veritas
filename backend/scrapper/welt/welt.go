@@ -6,6 +6,8 @@ import (
 	"news-swipe/backend/graph/model"
 	"news-swipe/backend/scrapper/common"
 	"time"
+
+	"github.com/pemistahl/lingua-go"
 )
 
 // RSS feed structures
@@ -44,7 +46,7 @@ type Media struct {
 // ScrapeWeltRSS fetches and processes the WELT.de RSS feed
 func Scrape() ([]model.Article, error) {
 	var rss RSS
-	if err := common.FetchRSSFeed("https://www.welt.de/feeds/latest.rss", &rss); err != nil {
+	if err := common.FetchRSSFeed("https://www.welt.de/feeds/topnews.rss", &rss); err != nil {
 		return nil, err
 	}
 	return parseRSStoArticles(rss)
@@ -113,6 +115,7 @@ func parseRSStoArticles(rss RSS) ([]model.Article, error) {
 			Description: description,
 			Banner:      banner,
 			Category:    categories,
+			Language:    model.FromLingua(lingua.German),
 		}
 
 		articles = append(articles, article)

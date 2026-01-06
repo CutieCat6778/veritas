@@ -37,22 +37,11 @@ struct NewsCard: View {
     }
 
     private var bannerImage: some View {
-        AsyncImage(url: URL(string: article.banner.isEmpty ? "https://picsum.photos/400/200" : article.banner)) { phase in
-            switch phase {
-            case .empty:
-                Color.gray.opacity(0.3)
-            case let .success(image):
-                image
-                    .resizable()
-                    .scaledToFill()
-            case .failure:
-                Color.red.opacity(0.3)
-            @unknown default:
-                EmptyView()
-            }
-        }
-        .frame(width: UIScreen.main.bounds.width * cardWidthRatio, height: (UIScreen.main.bounds.width * cardWidthRatio) * bannerHeightRatio)
-        .clipped()
+        ImagePlaceholder(
+            urlString: article.banner,
+            width: UIScreen.main.bounds.width * cardWidthRatio,
+            height: (UIScreen.main.bounds.width * cardWidthRatio) * bannerHeightRatio
+        )
     }
 
     private var titleText: some View {

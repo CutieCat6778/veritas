@@ -7,6 +7,8 @@ import (
 	"news-swipe/backend/scrapper/common"
 	"strings"
 	"time"
+
+	"github.com/pemistahl/lingua-go"
 )
 
 // RSS feed structures
@@ -23,11 +25,11 @@ type Channel struct {
 }
 
 type Item struct {
-	Title       string        `xml:"title"`
-	Link        []string        `xml:"link"`
-	Description string        `xml:"description"`
-	PubDate     string        `xml:"pubDate"`
-	GUID        string        `xml:"guid"`
+	Title        string       `xml:"title"`
+	Link         []string     `xml:"link"`
+	Description  string       `xml:"description"`
+	PubDate      string       `xml:"pubDate"`
+	GUID         string       `xml:"guid"`
 	MediaContent MediaContent `xml:"content"`
 }
 
@@ -102,12 +104,13 @@ func parseRSStoArticles(rss RSS) ([]model.Article, error) {
 			},
 			Title:       title,
 			Source:      model.SourceTaz, // Assuming SourceTaz is defined in model
-			PublishedAt:   pubDate,
+			PublishedAt: pubDate,
 			URI:         uri,
 			Views:       0, // Not provided in RSS feed
 			Description: description,
 			Banner:      banner,
 			Category:    categories,
+			Language:    model.FromLingua(lingua.German),
 		}
 
 		articles = append(articles, article)
@@ -124,4 +127,3 @@ func parsePubDate(pubDate string) (time.Time, error) {
 	}
 	return parsedTime, nil
 }
-

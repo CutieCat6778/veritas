@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/pemistahl/lingua-go"
 )
 
 // RDF represents the root of the RDF/XML feed.
@@ -62,6 +64,7 @@ func Scrape() ([]model.Article, error) {
 			Description: item.Description,
 			Banner:      banner,
 			Category:    []string{},
+			Language:    model.FromLingua(lingua.German),
 		}
 		articles = append(articles, article)
 	}

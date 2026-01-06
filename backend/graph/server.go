@@ -23,9 +23,6 @@ func InitGraphQL(ctx context.Context, port string, db *gorm.DB) error {
 	resolver := &Resolver{DB: db}
 	c := Config{Resolvers: resolver}
 
-	router := chi.NewRouter()
-
-	router.Use(FilterMiddleware)
 	srv := handler.New(NewExecutableSchema(c))
 
 	srv.AddTransport(transport.Options{})
@@ -41,8 +38,16 @@ func InitGraphQL(ctx context.Context, port string, db *gorm.DB) error {
 		Cache: lru.New[string](100),
 	})
 
+	// Create router with middlewares
+	router := chi.NewRouter()
+	router.Use(LanguageMiddleware)
+	router.Use(FilterMiddleware)
+	router.Use(RateLimitMiddleware)
+	router.Use(RedisCacheMiddleware)
+
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", cache.Middleware(srv))
+	router.Handle("/query", cache.Middleware(srv))
+	http.Handle("/query", router)
 	http.Handle("/metrics", promhttp.Handler())
 
 	server := &http.Server{

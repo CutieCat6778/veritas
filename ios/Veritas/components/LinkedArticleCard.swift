@@ -5,21 +5,11 @@ struct LinkedArticleCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AsyncImage(url: URL(string: article.banner.isEmpty ? "https://picsum.photos/400/200" : article.banner)) { phase in
-                switch phase {
-                case .empty:
-                    Color.gray.opacity(0.3)
-                case let .success(image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                case .failure:
-                    Color.red.opacity(0.3)
-                @unknown default:
-                    EmptyView()
-                }
-            }
-            .frame(width: 80, height: 80)
+            ImagePlaceholder(
+                urlString: article.banner,
+                width: 80,
+                height: 80
+            )
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 4) {

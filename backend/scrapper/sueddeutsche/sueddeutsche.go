@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/pemistahl/lingua-go"
 )
 
 // RSS represents the RSS feed structure
@@ -76,6 +78,8 @@ func Scrape() ([]model.Article, error) {
 			continue
 		}
 
+		description := stripHTML(item.Description)
+
 		article := model.Article{
 			GormModel: model.GormModel{
 				ID: fmt.Sprintf("%s-%s", model.SourceSueddeutsche, item.GUID),
@@ -85,9 +89,10 @@ func Scrape() ([]model.Article, error) {
 			PublishedAt: pubDate,
 			URI:         item.Link,
 			Views:       0, // Views not provided in RSS, default to 0
-			Description: stripHTML(item.Description),
+			Description: description,
 			Banner:      extractImageURL(item.Description),
 			Category:    item.Categories,
+			Language:    model.FromLingua(lingua.German),
 		}
 		articles = append(articles, article)
 	}

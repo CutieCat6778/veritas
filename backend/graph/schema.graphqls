@@ -57,6 +57,7 @@ type Query {
   linkedArticles(id: ID!): [Article]!
   article(id: ID!): Article 
   recentArticle(amount: Int!): [Article]! 
+  nextRecentArticle(start: Int!, stop: Int!): [Article]!
   batchFindArticles(ids: [ID]!): [Article]!
   keywords: [ResponseKeyWords]!
 }

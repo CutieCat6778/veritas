@@ -20,8 +20,12 @@ import (
 func (r *queryResolver) Articles(ctx context.Context) ([]*model.Article, error) {
 	cache.SetHint(ctx, cache.ScopePublic, 15*time.Minute)
 
+	lang := GetLanguageFromContext(ctx)
+
 	var articles []*model.Article
-	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").Preload("Keywords").Find(&articles).Error; err != nil {
+	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").Preload("Keywords").
+		Where("language = ?", lang).
+		Find(&articles).Error; err != nil {
 		errStr, code := utils.HandleGormError(err)
 		return nil, &gqlerror.Error{
 			Path:    graphql.GetPath(ctx),
@@ -39,8 +43,11 @@ func (r *queryResolver) Articles(ctx context.Context) ([]*model.Article, error) 
 func (r *queryResolver) TopArticles(ctx context.Context, amount int32) ([]*model.Article, error) {
 	cache.SetHint(ctx, cache.ScopePublic, 1*time.Minute)
 
+	lang := GetLanguageFromContext(ctx)
+
 	var articles []*model.Article
 	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").
+		Where("language = ?", lang).
 		Order("views DESC").
 		Limit(int(amount)).
 		Find(&articles).Error; err != nil {
@@ -62,6 +69,8 @@ func (r *queryResolver) TopArticles(ctx context.Context, amount int32) ([]*model
 func (r *queryResolver) LinkedArticles(ctx context.Context, id string) ([]*model.Article, error) {
 	cache.SetHint(ctx, cache.ScopePublic, 15*time.Minute)
 
+	lang := GetLanguageFromContext(ctx)
+
 	// Load the article with LinkedTo relation
 	var article model.Article
 	if err := r.DB.Preload("LinkedTo").First(&article, "id = ?", id).Error; err != nil {
@@ -69,9 +78,15 @@ func (r *queryResolver) LinkedArticles(ctx context.Context, id string) ([]*model
 		return nil, utils.GqlError("Failed to load article", errStr, code, ctx)
 	}
 
-	// If LinkedTo exists, return early
+	// If LinkedTo exists, filter by language and return
 	if len(article.LinkedTo) > 0 {
-		return article.LinkedTo, nil
+		var filteredLinked []*model.Article
+		for _, linked := range article.LinkedTo {
+			if linked.Language == lang {
+				filteredLinked = append(filteredLinked, linked)
+			}
+		}
+		return filteredLinked, nil
 	}
 
 	// Otherwise, compute similarity (optional, your trigram query)
@@ -98,19 +113,20 @@ func (r *queryResolver) LinkedArticles(ctx context.Context, id string) ([]*model
 		WITH source AS (
 			SELECT * FROM articles WHERE id = ?
 		)
-		SELECT 
+		SELECT
 			a2.*
-		FROM 
+		FROM
 			source s
-		JOIN 
+		JOIN
 			articles a2 ON s.id < a2.id
-		WHERE 
+		WHERE
 			ABS(EXTRACT(EPOCH FROM (s.published_at - a2.published_at)) / 86400) <= 1
+			AND a2.language = ?
 		LIMIT 300;
 	`
 
 	var similar []*model.Article
-	if err := tx.Raw(query, id).Scan(&similar).Error; err != nil {
+	if err := tx.Raw(query, id, lang).Scan(&similar).Error; err != nil {
 		tx.Rollback()
 		errStr, code := utils.HandleGormError(err)
 		return nil, utils.GqlError("Similarity query failed", errStr, code, ctx)
@@ -133,9 +149,11 @@ func (r *queryResolver) LinkedArticles(ctx context.Context, id string) ([]*model
 
 // Article returns a single article by ID.
 func (r *queryResolver) Article(ctx context.Context, id string) (*model.Article, error) {
+	lang := GetLanguageFromContext(ctx)
+
 	var article model.Article
 	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").Preload("Keywords").
-		Where("id = ?", id).
+		Where("id = ? AND language = ?", id, lang).
 		First(&article).Error; err != nil {
 		errStr, code := utils.HandleGormError(err)
 		return nil, &gqlerror.Error{
@@ -155,8 +173,11 @@ func (r *queryResolver) Article(ctx context.Context, id string) (*model.Article,
 func (r *queryResolver) RecentArticle(ctx context.Context, amount int32) ([]*model.Article, error) {
 	cache.SetHint(ctx, cache.ScopePublic, 5*time.Minute)
 
+	lang := GetLanguageFromContext(ctx)
+
 	var articles []*model.Article
 	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").Preload("Keywords").
+		Where("language = ?", lang).
 		Order("published_at DESC").
 		Limit(int(amount)).
 		Find(&articles).Error; err != nil {
@@ -172,9 +193,41 @@ func (r *queryResolver) RecentArticle(ctx context.Context, amount int32) ([]*mod
 	return articles, nil
 }
 
+// NextRecentArticle is the resolver for the nextRecentArticle field.
+func (r *queryResolver) NextRecentArticle(ctx context.Context, start int32, stop int32) ([]*model.Article, error) {
+	cache.SetHint(ctx, cache.ScopePublic, 5*time.Minute)
+
+	lang := GetLanguageFromContext(ctx)
+
+	limit := stop - start
+	if limit <= 0 {
+		return []*model.Article{}, nil
+	}
+
+	var articles []*model.Article
+	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").Preload("Keywords").
+		Where("language = ?", lang).
+		Order("published_at DESC").
+		Offset(int(start)).
+		Limit(int(limit)).
+		Find(&articles).Error; err != nil {
+		errStr, code := utils.HandleGormError(err)
+		return nil, &gqlerror.Error{
+			Path:       graphql.GetPath(ctx),
+			Message:    fmt.Sprintf("Failed to fetch recent articles: %s", errStr),
+			Extensions: map[string]any{"code": code},
+		}
+	}
+
+	r.UpdateViews(ctx, articles)
+	return articles, nil
+}
+
 // BatchFindArticles returns multiple articles by IDs.
 func (r *queryResolver) BatchFindArticles(ctx context.Context, ids []*string) ([]*model.Article, error) {
 	cache.SetHint(ctx, cache.ScopePublic, 24*7*time.Hour)
+
+	lang := GetLanguageFromContext(ctx)
 
 	nonNilIDs := make([]string, 0, len(ids))
 	for _, id := range ids {
@@ -189,7 +242,7 @@ func (r *queryResolver) BatchFindArticles(ctx context.Context, ids []*string) ([
 
 	var articles []*model.Article
 	if err := r.DB.Preload("LinkedTo").Preload("LinkedFrom").Preload("Keywords").
-		Where("id IN ?", nonNilIDs).
+		Where("id IN ? AND language = ?", nonNilIDs, lang).
 		Find(&articles).Error; err != nil {
 		errStr, code := utils.HandleGormError(err)
 		return nil, &gqlerror.Error{
@@ -205,8 +258,10 @@ func (r *queryResolver) BatchFindArticles(ctx context.Context, ids []*string) ([
 
 // Keywords returns all keywords with their linked articles.
 func (r *queryResolver) Keywords(ctx context.Context) ([]*model.ResponseKeyWords, error) {
+	lang := GetLanguageFromContext(ctx)
+
 	var keywords []*model.KeyWords
-	if err := r.DB.Preload("Articles").Order("last_update DESC").Find(&keywords).Error; err != nil {
+	if err := r.DB.Preload("Articles", "language = ?", lang).Order("last_update DESC").Find(&keywords).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch keywords: %w", err)
 	}
 

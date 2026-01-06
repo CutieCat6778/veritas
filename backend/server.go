@@ -66,6 +66,13 @@ func main() {
 
 	db.AutoMigrate(&model.Article{}, &model.KeyWords{})
 
+	// Initialize Redis
+	if err := utils.InitRedis(); err != nil {
+		log.Printf("Warning: Redis initialization failed: %v", err)
+		log.Println("Continuing without Redis caching and rate limiting")
+	}
+	defer utils.CloseRedis()
+
 	go cron.CreateCron(ctx, db)
 
 	go func() {

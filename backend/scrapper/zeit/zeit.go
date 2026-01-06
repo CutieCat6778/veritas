@@ -7,6 +7,8 @@ import (
 	"news-swipe/backend/scrapper/common"
 	"strings"
 	"time"
+
+	"github.com/pemistahl/lingua-go"
 )
 
 // RSS feed structures
@@ -42,7 +44,7 @@ type Enclosure struct {
 // ScrapeZeitRSS fetches and processes the ZEIT ONLINE RSS feed
 func Scrape() ([]model.Article, error) {
 	var rss RSS
-	if err := common.FetchRSSFeed("https://newsfeed.zeit.de/index", &rss); err != nil {
+	if err := common.FetchRSSFeed("https://newsfeed.zeit.de/news/index", &rss); err != nil {
 		return nil, err
 	}
 	return parseRSStoArticles(rss)
@@ -114,6 +116,7 @@ func parseRSStoArticles(rss RSS) ([]model.Article, error) {
 			Description: description,
 			Banner:      banner,
 			Category:    categories,
+			Language:    model.FromLingua(lingua.German),
 		}
 
 		articles = append(articles, article)

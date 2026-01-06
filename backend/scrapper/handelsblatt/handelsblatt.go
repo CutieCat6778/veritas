@@ -6,6 +6,8 @@ import (
 	"news-swipe/backend/graph/model"
 	"news-swipe/backend/scrapper/common"
 	"time"
+
+	"github.com/pemistahl/lingua-go"
 )
 
 // RSS feed structures
@@ -94,12 +96,13 @@ func parseRSStoArticles(rss RSS) ([]model.Article, error) {
 			},
 			Title:       title,
 			Source:      model.SourceHandelsblatt, // Assuming SourceHandelsblatt is defined in model
-			PublishedAt:   pubDate,
+			PublishedAt: pubDate,
 			URI:         item.Link,
 			Views:       0, // Not provided in RSS feed
 			Description: description,
 			Banner:      banner,
 			Category:    categories,
+			Language:    model.FromLingua(lingua.German),
 		}
 
 		articles = append(articles, article)

@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/pemistahl/lingua-go"
 )
 
 // RSS feed structures
@@ -125,6 +127,7 @@ func parseRSStoArticles(rss RSS) ([]model.Article, error) {
 			Description: description,
 			Banner:      banner,
 			Category:    categories,
+			Language:    model.FromLingua(lingua.German),
 		}
 
 		articles = append(articles, article)

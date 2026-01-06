@@ -6,6 +6,7 @@ struct ArticleDetailView: View {
     let pullData: Bool
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = ArticleDetailViewModel()
+    @StateObject private var savedArticlesManager = SavedArticlesManager.shared
 
     private let bannerHeight: CGFloat = 250
 
@@ -15,29 +16,15 @@ struct ArticleDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Banner Image
-                AsyncImage(url: URL(string: displayArticle.banner.isEmpty ? "https://picsum.photos/400/200" : displayArticle.banner)) { phase in
-                    switch phase {
-                    case .empty:
-                        Color.gray.opacity(0.3)
-                            .frame(width: UIScreen.main.bounds.width, height: bannerHeight)
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: UIScreen.main.bounds.width, height: bannerHeight)
-                            .clipped()
-                    case .failure:
-                        Color.red.opacity(0.3)
-                            .frame(width: UIScreen.main.bounds.width, height: bannerHeight)
-                    @unknown default:
-                        EmptyView()
-                    }
-                }
-                .frame(width: UIScreen.main.bounds.width, height: bannerHeight)
-                .clipped()
+        ZStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Banner Image
+                    ImagePlaceholder(
+                        urlString: displayArticle.banner,
+                        width: UIScreen.main.bounds.width,
+                        height: bannerHeight
+                    )
 
                 VStack(alignment: .leading, spacing: 16) {
                     // Categories
@@ -142,8 +129,38 @@ struct ArticleDetailView: View {
                 .padding(.horizontal)
             }
         }
+        .opacity(viewModel.isLoading && pullData ? 0.5 : 1.0)
+
+        // Loading Overlay
+        if viewModel.isLoading && pullData {
+            VStack(spacing: 16) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .tint(.blue)
+                Text("Loading article details...")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemBackground).opacity(0.9))
+        }
+        }
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        savedArticlesManager.toggleSaved(displayArticle.id)
+                    }
+                }) {
+                    Image(systemName: savedArticlesManager.isSaved(displayArticle.id) ? "bookmark.fill" : "bookmark")
+                        .font(.title3)
+                        .foregroundColor(savedArticlesManager.isSaved(displayArticle.id) ? .blue : .secondary)
+                        .symbolEffect(.bounce, value: savedArticlesManager.isSaved(displayArticle.id))
+                }
+            }
+        }
+        .task {
             if pullData {
                 viewModel.fetchArticle(id: article.id)
             }

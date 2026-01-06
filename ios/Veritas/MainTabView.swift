@@ -2,6 +2,8 @@ import Apollo
 import SwiftUI
 
 struct MainTabView: View {
+    @StateObject private var settingsManager = SettingsManager.shared
+
     var body: some View {
         TabView {
             NavigationStack {
@@ -11,15 +13,19 @@ struct MainTabView: View {
                 Label("home_tab", systemImage: "house")
             }
 
-            SearchPage()
-                .tabItem {
-                    Label("search_tab", systemImage: "magnifyingglass")
-                }
+            NavigationStack {
+                DiscoverPage(viewModel: DiscoverPageModel())
+            }
+            .tabItem {
+                Label("discover_tab", systemImage: "magnifyingglass")
+            }
 
-            ProfilePage()
+            MenuPage()
                 .tabItem {
-                    Label("profile_tab", systemImage: "person.crop.circle")
+                    Label("menu_tab", systemImage: "line.3.horizontal")
                 }
         }
+        .withPatternBackground()
+        .preferredColorScheme(settingsManager.colorScheme)
     }
 }

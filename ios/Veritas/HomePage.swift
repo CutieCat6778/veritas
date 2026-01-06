@@ -12,10 +12,18 @@ struct HomePage<ViewModel: HomePageModelProtocol>: View {
                 SectionView(sectionTitle: "homepage_now", articles: viewModel.articles)
             }
             .padding(.vertical)
+
+            ForEach(viewModel.keywords) { item in
+                SectionView(
+                    sectionTitle: item.keyword,
+                    articles: item.articles
+                )
+            }
         }
         .background(Color.clear)
         .onAppear {
             viewModel.getRecentArticles(amount: 5)
+            viewModel.getKeyWords()
         }
     }
 }

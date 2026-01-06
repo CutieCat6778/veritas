@@ -13,7 +13,7 @@ struct NewsCard: View {
     private let cardWidthRatio: CGFloat = 0.9
 
     var body: some View {
-        NavigationLink(destination: ArticleDetailView(article: article)) {
+        NavigationLink(destination: ArticleDetailView(article: article, pullData: true)) {
             VStack(spacing: 0) {
                 bannerImage
 

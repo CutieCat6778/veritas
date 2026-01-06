@@ -6,13 +6,18 @@ import Graphql
 @MainActor
 protocol HomePageModelProtocol: ObservableObject, AnyObject {
     var articles: [Article] { get }
+    var keywords: [Keyword] { get }
     func getRecentArticles(amount: Int)
+    func getKeyWords()
 }
 
 final class HomePageModel: HomePageModelProtocol {
     @Published var articles: [Article] = []
+    @Published var keywords: [Keyword] = []
 
-    // ISO8601 Date Formatter
+    private var articlesTask: Task<Void, Never>?
+    private var keywordsTask: Task<Void, Never>?
+
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -21,95 +26,98 @@ final class HomePageModel: HomePageModelProtocol {
         return formatter
     }()
 
+    private let iso8601Formatter = ISO8601DateFormatter()
+
+    deinit {
+        articlesTask?.cancel()
+        keywordsTask?.cancel()
+    }
+
     func getRecentArticles(amount: Int) {
-        Task {
+        articlesTask?.cancel()
+        articlesTask = Task {
             do {
                 let query = GetRecentArticlesQuery(amount: Int32(amount))
                 let result = try await Network.shared.apollo.fetch(query: query)
+
+                guard !Task.isCancelled else { return }
 
                 if let fetchedData = result.data?.recentArticle {
                     self.articles = fetchedData.compactMap { self.mapToArticle(item: $0) }
                 }
             } catch {
+                guard !Task.isCancelled else { return }
                 print("Error fetching articles: \(error)")
             }
         }
     }
 
-    private func mapToArticle(item: GetRecentArticlesQuery.Data.RecentArticle?) -> Article? {
+    func getKeyWords() {
+        keywordsTask?.cancel()
+        keywordsTask = Task {
+            do {
+                let query = GetKeywordsQuery()
+                let result = try await Network.shared.apollo.fetch(query: query)
+
+                guard !Task.isCancelled else { return }
+
+                if let fetchedData = result.data?.keywords {
+                    self.keywords = fetchedData.compactMap { self.mapToKeyword(item: $0) }
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                print("Error fetching keywords: \(error)")
+            }
+        }
+    }
+
+    private func mapToKeyword(item: GetKeywordsQuery.Data.Keyword?) -> Keyword? {
         guard let item = item else { return nil }
 
-        let fields = item.fragments.articleFields
-
-        // These fields are non-optional, no need for ?? operator
-        let sourceString = fields.source.rawValue
-        let categories = fields.category?.compactMap { $0 } ?? []
-
-        // Handle Linked Articles
-        let linkedArticles: [Article]
-        if let links = item.fragments.articleWithLinks.linkedTo, !links.isEmpty {
-            linkedArticles = links.compactMap { linkedItem -> Article? in
-                guard let lFields = linkedItem else { return nil }
-
-                return Article(
-                    id: lFields.id,
-                    title: lFields.title,
-                    source: lFields.source.rawValue,
-                    publishedAt: parseDate(lFields.publishedAt),
-                    uri: "",
-                    views: 0,
-                    description: "",
-                    banner: lFields.banner,
-                    linkedTo: [],
-                    category: []
-                )
-            }
-        } else {
-            linkedArticles = []
+        let fields = item.fragments.responseKeywordFields
+        let associatedArticles = fields.articles.compactMap { articleItem -> Article? in
+            guard let articleItem = articleItem else { return nil }
+            let aFields = articleItem.fragments.articleFields
+            return mapArticleMinimal(fields: aFields)
         }
 
+        return Keyword(
+            id: fields.id,
+            keyword: fields.keyword,
+            lastUpdate: parseDateSafe(fields.lastUpdate),
+            articles: associatedArticles
+        )
+    }
+
+    private func mapToArticle(item: GetRecentArticlesQuery.Data.RecentArticle?) -> Article? {
+        guard let item = item else { return nil }
+        let fields = item.fragments.articleFields
+        return mapArticleMinimal(fields: fields)
+    }
+
+    private func mapArticleMinimal(fields: ArticleFields) -> Article {
         return Article(
             id: fields.id,
             title: fields.title,
-            source: sourceString,
-            publishedAt: parseDate(fields.publishedAt),
+            source: fields.source.rawValue,
+            publishedAt: parseDateSafe(fields.publishedAt),
             uri: fields.uri,
             views: fields.views,
             description: fields.description,
             banner: fields.banner,
-            linkedTo: linkedArticles,
-            category: categories
+            linkedTo: [],
+            category: fields.category?.compactMap { $0 } ?? []
         )
     }
 
-    // Helper function to parse date string to Date
-    private func parseDate(_ dateString: String) -> Date {
+    private func parseDateSafe(_ dateString: String) -> Date {
         if let date = dateFormatter.date(from: dateString) {
             return date
         }
-        // Fallback: try ISO8601DateFormatter
-        if let date = ISO8601DateFormatter().date(from: dateString) {
+        if let date = iso8601Formatter.date(from: dateString) {
             return date
         }
-        // Last resort: return current date
-        print("Warning: Could not parse date string: \(dateString)")
+        print("Warning: Could not parse date string: '\(dateString)', using current date")
         return Date()
-    }
-}
-
-extension Article {
-    static var empty: Article {
-        Article(
-            id: "",
-            title: "",
-            source: "",
-            publishedAt: Date(),
-            uri: "",
-            views: 0,
-            description: "",
-            banner: "",
-            linkedTo: [],
-            category: []
-        )
     }
 }

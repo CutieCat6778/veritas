@@ -57,8 +57,25 @@ struct DiscoverPage<ViewModel: DiscoverPageModelProtocol>: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(viewModel.filteredArticles) { article in
+                        ForEach(Array(viewModel.filteredArticles.enumerated()), id: \.element.id) { index, article in
                             CompactArticleCard(article: article)
+                                .equatable()
+                                .onAppear {
+                                    // Load more when approaching the end (3 items before the end)
+                                    if index == viewModel.filteredArticles.count - 3 {
+                                        viewModel.loadMoreArticles()
+                                    }
+                                }
+                        }
+
+                        // Loading indicator for pagination
+                        if viewModel.isLoadingMore {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .padding()
+                                Spacer()
+                            }
                         }
                     }
                     .padding(.horizontal)
@@ -116,8 +133,12 @@ struct SearchBar: View {
 
 // MARK: - Compact Article Card Component
 
-struct CompactArticleCard: View {
+struct CompactArticleCard: View, Equatable {
     let article: Article
+
+    static func == (lhs: CompactArticleCard, rhs: CompactArticleCard) -> Bool {
+        lhs.article.id == rhs.article.id
+    }
 
     private let cardHeight: CGFloat = 140
     private let cornerRadius: CGFloat = 12
@@ -127,30 +148,11 @@ struct CompactArticleCard: View {
         NavigationLink(destination: ArticleDetailView(article: article, pullData: true)) {
             HStack(spacing: 12) {
                 // Banner Image
-                AsyncImage(url: URL(string: article.banner.isEmpty ? "https://picsum.photos/400/300" : article.banner)) { phase in
-                    switch phase {
-                    case .empty:
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .overlay(
-                                ProgressView()
-                            )
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .failure:
-                        Rectangle()
-                            .fill(Color.red.opacity(0.3))
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .foregroundColor(.white)
-                            )
-                    @unknown default:
-                        EmptyView()
-                    }
-                }
-                .frame(width: imageWidth, height: cardHeight)
+                ImagePlaceholder(
+                    urlString: article.banner.isEmpty ? "https://picsum.photos/400/300" : article.banner,
+                    width: imageWidth,
+                    height: cardHeight
+                )
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
 
                 // Content

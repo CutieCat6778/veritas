@@ -17,6 +17,7 @@ struct HomePage<ViewModel: HomePageModelProtocol>: View {
                 }
             }
             .padding(.vertical)
+            .padding(.bottom, 20)
 
             // Keywords Sections
             if viewModel.isLoadingKeywords && viewModel.keywords.isEmpty {
@@ -27,7 +28,9 @@ struct HomePage<ViewModel: HomePageModelProtocol>: View {
                         sectionTitle: item.keyword,
                         articles: item.articles
                     )
+                    .padding(.bottom, 20)
                 }
+                .padding(.bottom, 20)
             }
         }
         .refreshable {
@@ -57,6 +60,7 @@ struct SectionView: View {
                 LazyHStack(spacing: 16) {
                     ForEach(articles) { article in
                         NewsCard(article: article)
+                            .equatable()
                     }
                 }
                 .scrollTargetLayout()

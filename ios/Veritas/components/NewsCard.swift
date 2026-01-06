@@ -1,7 +1,11 @@
 import SwiftUI
 
-struct NewsCard: View {
+struct NewsCard: View, Equatable {
     let article: Article
+
+    static func == (lhs: NewsCard, rhs: NewsCard) -> Bool {
+        lhs.article.id == rhs.article.id
+    }
 
     private let cardHeight: CGFloat = 330
     private let cornerRadius: CGFloat = 16

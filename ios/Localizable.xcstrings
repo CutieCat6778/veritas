@@ -1,12 +1,42 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "%lld %@" : {
+    "%lld" : {
       "localizations" : {
-        "en" : {
+        "de" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld %2$@"
+            "state" : "translated",
+            "value" : "%lld"
+          }
+        }
+      }
+    },
+    "%lld views" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld views"
+          }
+        }
+      }
+    },
+    "•" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "•"
+          }
+        }
+      }
+    },
+    "1.0.0" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1.0.0"
           }
         }
       }
@@ -65,6 +95,62 @@
         }
       }
     },
+    "discover_searchbar_placeholder" : {
+      "comment" : "Search Placeholder",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche Artikel..."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search article..."
+          }
+        }
+      }
+    },
+    "discover_tab" : {
+      "comment" : "Search Tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entdecken"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discove"
+          }
+        }
+      }
+    },
+    "Done" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fertig"
+          }
+        }
+      }
+    },
+    "Error loading articles" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fehler beim Laden der Artikel"
+          }
+        }
+      }
+    },
     "home_tab" : {
       "comment" : "Home Tab",
       "extractionState" : "manual",
@@ -97,6 +183,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Now currently"
+          }
+        }
+      }
+    },
+    "Loading article details..." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artikel-Details werden geladen..."
           }
         }
       }
@@ -173,6 +269,24 @@
         }
       }
     },
+    "menu_settings" : {
+      "comment" : "Settings",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
     "menu_tab" : {
       "comment" : "Menu Tab",
       "extractionState" : "manual",
@@ -245,224 +359,56 @@
         }
       }
     },
-    "menu_settings" : {
-      "comment" : "Settings",
-      "extractionState" : "manual",
+    "No articles found" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Einstellungen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Settings"
+            "value" : "Keine Artikel gefunden"
           }
         }
       }
     },
-    "settings_language" : {
-      "comment" : "Language",
-      "extractionState" : "manual",
+    "No search results" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sprache"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Language"
+            "value" : "Keine Suchergebnisse"
           }
         }
       }
     },
-    "settings_german" : {
-      "comment" : "German",
+    "profile_tab" : {
+      "comment" : "Profile Tab",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deutsch"
+            "value" : "Profil"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "German"
+            "value" : "Profile"
           }
         }
       }
     },
-    "settings_english" : {
-      "comment" : "English",
-      "extractionState" : "manual",
+    "Retry" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Englisch"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "English"
-          }
-        }
-      }
-    },
-    "settings_language_section" : {
-      "comment" : "Language Section",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sprache"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Language"
-          }
-        }
-      }
-    },
-    "settings_language_footer" : {
-      "comment" : "Language Footer",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wählen Sie Ihre bevorzugte Sprache"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose your preferred language"
-          }
-        }
-      }
-    },
-    "settings_sources_section" : {
-      "comment" : "Sources Section",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nachrichtenquellen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "News Sources"
-          }
-        }
-      }
-    },
-    "settings_sources_footer" : {
-      "comment" : "Sources Footer",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wählen Sie die Nachrichtenquellen aus, die Sie sehen möchten"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select the news sources you want to see"
+            "value" : "Erneut versuchen"
           }
         }
       }
     },
     "settings_appearance" : {
       "comment" : "Appearance",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erscheinungsbild"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appearance"
-          }
-        }
-      }
-    },
-    "settings_system" : {
-      "comment" : "System",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "System"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "System"
-          }
-        }
-      }
-    },
-    "settings_light" : {
-      "comment" : "Light",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hell"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Light"
-          }
-        }
-      }
-    },
-    "settings_dark" : {
-      "comment" : "Dark",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dunkel"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dark"
-          }
-        }
-      }
-    },
-    "settings_appearance_section" : {
-      "comment" : "Appearance Section",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -497,38 +443,20 @@
         }
       }
     },
-    "settings_reset" : {
-      "comment" : "Reset Settings",
+    "settings_appearance_section" : {
+      "comment" : "Appearance Section",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Einstellungen zurücksetzen"
+            "value" : "Erscheinungsbild"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reset Settings"
-          }
-        }
-      }
-    },
-    "settings_reset_alert_title" : {
-      "comment" : "Reset Settings Alert Title",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Einstellungen zurücksetzen?"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset Settings?"
+            "value" : "Appearance"
           }
         }
       }
@@ -551,6 +479,150 @@
         }
       }
     },
+    "settings_dark" : {
+      "comment" : "Dark",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dunkel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark"
+          }
+        }
+      }
+    },
+    "settings_english" : {
+      "comment" : "English",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Englisch"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "English"
+          }
+        }
+      }
+    },
+    "settings_german" : {
+      "comment" : "German",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deutsch"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "German"
+          }
+        }
+      }
+    },
+    "settings_language" : {
+      "comment" : "Language",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprache"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Language"
+          }
+        }
+      }
+    },
+    "settings_language_footer" : {
+      "comment" : "Language Footer",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wählen Sie Ihre bevorzugte Sprache"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose your preferred language"
+          }
+        }
+      }
+    },
+    "settings_language_section" : {
+      "comment" : "Language Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprache"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Language"
+          }
+        }
+      }
+    },
+    "settings_light" : {
+      "comment" : "Light",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hell"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light"
+          }
+        }
+      }
+    },
+    "settings_reset" : {
+      "comment" : "Reset Settings",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen zurücksetzen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Settings"
+          }
+        }
+      }
+    },
     "settings_reset_alert_message" : {
       "comment" : "Reset Settings Alert Message",
       "extractionState" : "manual",
@@ -569,78 +641,94 @@
         }
       }
     },
-    "profile_tab" : {
-      "comment" : "Profile Tab",
+    "settings_reset_alert_title" : {
+      "comment" : "Reset Settings Alert Title",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Profil"
+            "value" : "Einstellungen zurücksetzen?"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Profile"
+            "value" : "Reset Settings?"
           }
         }
       }
     },
-    "discover_searchbar_placeholder" : {
-      "comment" : "Search Placeholder",
+    "settings_sources_footer" : {
+      "comment" : "Sources Footer",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Suche Artikel..."
+            "value" : "Wählen Sie die Nachrichtenquellen aus, die Sie sehen möchten"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search article..."
+            "value" : "Select the news sources you want to see"
           }
         }
       }
     },
-    "discover_tab" : {
-      "comment" : "Search Tab",
+    "settings_sources_section" : {
+      "comment" : "Sources Section",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entdecken"
+            "value" : "Nachrichtenquellen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Discove"
+            "value" : "News Sources"
           }
         }
       }
     },
-    "This is profile" : {
-      "comment" : "This is Profile",
+    "settings_system" : {
+      "comment" : "System",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das ist Profil"
+            "value" : "System"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System"
           }
         }
       }
     },
-    "This is searchPage" : {
-      "comment" : "This is searchPage",
+    "Try searching with different keywords" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das is Suche"
+            "value" : "Versuchen Sie es mit anderen Suchbegriffen."
+          }
+        }
+      }
+    },
+    "Veritas" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veritas"
           }
         }
       }

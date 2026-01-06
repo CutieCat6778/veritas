@@ -15,6 +15,7 @@ public final class Query: MockObject {
     @Field<[Article?]>("batchFindArticles") public var batchFindArticles
     @Field<[ResponseKeyWords?]>("keywords") public var keywords
     @Field<[Article?]>("linkedArticles") public var linkedArticles
+    @Field<[Article?]>("nextRecentArticle") public var nextRecentArticle
     @Field<[Article?]>("recentArticle") public var recentArticle
     @Field<[Article?]>("topArticles") public var topArticles
   }
@@ -27,6 +28,7 @@ public extension Mock where O == Query {
     batchFindArticles: [Mock<Article>?] = [],
     keywords: [Mock<ResponseKeyWords>?] = [],
     linkedArticles: [Mock<Article>?] = [],
+    nextRecentArticle: [Mock<Article>?] = [],
     recentArticle: [Mock<Article>?] = [],
     topArticles: [Mock<Article>?] = []
   ) {
@@ -36,6 +38,7 @@ public extension Mock where O == Query {
     _setList(batchFindArticles, for: \.batchFindArticles)
     _setList(keywords, for: \.keywords)
     _setList(linkedArticles, for: \.linkedArticles)
+    _setList(nextRecentArticle, for: \.nextRecentArticle)
     _setList(recentArticle, for: \.recentArticle)
     _setList(topArticles, for: \.topArticles)
   }

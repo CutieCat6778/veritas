@@ -73,6 +73,13 @@ query GetRecentArticles($amount: Int!) {
   }
 }
 
+query GetNextRecentArticles($start: Int!, $stop: Int!) {
+  nextRecentArticle(start: $start, stop: $stop) {
+    ...ArticleFields
+    ...ArticleWithLinks
+  }
+}
+
 # Fetch articles linked to a specific article
 query GetLinkedArticles($id: ID!) {
   linkedArticles(id: $id) {

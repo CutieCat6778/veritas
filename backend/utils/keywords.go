@@ -1,9 +1,12 @@
 package utils
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"maps"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -13,42 +16,72 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
+
+var (
+	stopwordsCache      map[string]bool
+	stopwordsCacheOnce  sync.Once
+	titleFormatterCache cases.Caser
+	formatterOnce       sync.Once
+	stringBuilderPool   = sync.Pool{
+		New: func() interface{} {
+			return &strings.Builder{}
+		},
+	}
+)
+
+func getStopwords() map[string]bool {
+	stopwordsCacheOnce.Do(func() {
+		stopwordsCache = make(map[string]bool)
+		maps.Copy(stopwordsCache, StopwordsEn)
+		maps.Copy(stopwordsCache, StopwordsDe)
+	})
+	return stopwordsCache
+}
+
+func getTitleFormatter() cases.Caser {
+	formatterOnce.Do(func() {
+		titleFormatterCache = cases.Title(language.German)
+	})
+	return titleFormatterCache
+}
 
 func GenerateKeywordsFromArticles(db *gorm.DB) error {
 	cutoff := time.Now().AddDate(0, 0, -14)
 
 	var articles []model.Article
-	if err := db.Where("published_at >= ?", cutoff).Find(&articles).Error; err != nil {
+	if err := db.Select("id, title, description, published_at").
+		Where("published_at >= ?", cutoff).
+		Find(&articles).Error; err != nil {
 		return err
 	}
 	if len(articles) == 0 {
 		return nil
 	}
 
-	// Deduplicate by title (case-insensitive)
 	articles = deduplicateByTitle(articles)
-
-	// Cluster similar articles
 	config := DefaultSimilarityConfig()
-	clusters := clusterArticles(articles, 0.37, config)
+	clusters := clusterArticles(articles, 0.36, config)
+	keywords := extractAndMergeKeywords(clusters)
 
-	// Extract and clean keywords
-	keywords := extractKeywordsFromClusters(clusters)
-	if len(keywords) == 0 {
-		return nil
-	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM article_keywords").Error; err != nil {
+			return err
+		}
 
-	// Merge similar/redundant keywords
-	keywords = mergeRedundantKeywords(keywords)
+		if err := tx.Exec("DELETE FROM key_words").Error; err != nil {
+			return err
+		}
 
-	// Persist to database
-	return persistKeywords(db, keywords, clusters)
+		if len(keywords) == 0 {
+			return nil
+		}
+
+		return persistKeywordsInTx(tx, keywords)
+	})
 }
-
 func deduplicateByTitle(articles []model.Article) []model.Article {
-	seen := make(map[string]bool)
+	seen := make(map[string]bool, len(articles))
 	result := make([]model.Article, 0, len(articles))
 
 	for _, a := range articles {
@@ -62,15 +95,16 @@ func deduplicateByTitle(articles []model.Article) []model.Article {
 }
 
 func clusterArticles(articles []model.Article, threshold float64, config SimilarityConfig) [][]model.Article {
-	var clusters [][]model.Article
-	visited := make(map[string]bool)
+	clusters := make([][]model.Article, 0, len(articles)/5)
+	visited := make(map[string]bool, len(articles))
 
 	for i, a1 := range articles {
 		if visited[a1.ID] {
 			continue
 		}
 
-		cluster := []model.Article{a1}
+		cluster := make([]model.Article, 1, 10)
+		cluster[0] = a1
 		visited[a1.ID] = true
 
 		for j := i + 1; j < len(articles); j++ {
@@ -88,167 +122,213 @@ func clusterArticles(articles []model.Article, threshold float64, config Similar
 	return clusters
 }
 
-func extractKeywordsFromClusters(clusters [][]model.Article) map[string]*model.KeyWords {
-	keywords := make(map[string]*model.KeyWords)
-	titleFormatter := cases.Title(language.German)
-	stopwords := getCombinedStopwords()
+type keywordData struct {
+	keyword        string
+	totalFrequency int
+	articleSet     map[string]bool
+	articles       []string
+}
+
+func extractAndMergeKeywords(clusters [][]model.Article) map[string]*keywordData {
+	stopwords := getStopwords()
+	titleFormatter := getTitleFormatter()
+
+	keywordToData := make(map[string]*keywordData)
 
 	for _, cluster := range clusters {
 		if len(cluster) < 2 {
 			continue
 		}
 
+		articleIDs := make([]string, len(cluster))
+		articleSet := make(map[string]bool, len(cluster))
+		for i, art := range cluster {
+			articleIDs[i] = art.ID
+			articleSet[art.ID] = true
+		}
+		sort.Strings(articleIDs)
+
 		candidates := extractCandidates(cluster, stopwords)
-		topKeywords := selectTopKeywords(candidates, 5) // Get more initially
+		topKeywords := selectTopKeywords(candidates, 8)
 
 		for _, kw := range topKeywords {
 			cleaned := cleanKeyword(kw)
-			if len(cleaned) < 4 {
+			if len(cleaned) < 4 || isCommonEntity(strings.ToLower(cleaned)) {
 				continue
 			}
 
 			formatted := titleFormatter.String(cleaned)
-			if _, exists := keywords[formatted]; !exists {
-				keywords[formatted] = &model.KeyWords{
-					GormModel:  model.GormModel{ID: uuid.NewString()},
-					Keyword:    formatted,
-					LastUpdate: time.Now(),
+
+			if existing, exists := keywordToData[formatted]; exists {
+				for _, artID := range articleIDs {
+					if !existing.articleSet[artID] {
+						existing.articleSet[artID] = true
+						existing.articles = append(existing.articles, artID)
+					}
+				}
+				existing.totalFrequency += candidates[kw]
+			} else {
+				articleSetCopy := make(map[string]bool, len(articleSet))
+				for k, v := range articleSet {
+					articleSetCopy[k] = v
+				}
+				articlesCopy := make([]string, len(articleIDs))
+				copy(articlesCopy, articleIDs)
+
+				keywordToData[formatted] = &keywordData{
+					keyword:        formatted,
+					totalFrequency: candidates[kw],
+					articleSet:     articleSetCopy,
+					articles:       articlesCopy,
 				}
 			}
 		}
 	}
-	return keywords
+
+	for _, kw := range keywordToData {
+		sort.Strings(kw.articles)
+	}
+
+	keywordToData = deduplicateByArticleSet(keywordToData)
+	keywordToData = removeSubsets(keywordToData)
+
+	return keywordToData
 }
 
-func mergeRedundantKeywords(keywords map[string]*model.KeyWords) map[string]*model.KeyWords {
-	// Convert to slice for processing
-	type kwItem struct {
-		key string
-		kw  *model.KeyWords
+func deduplicateByArticleSet(allKeywords map[string]*keywordData) map[string]*keywordData {
+	hashToKeywords := make(map[string][]*keywordData)
+
+	for _, kw := range allKeywords {
+		hash := hashArticleSet(kw.articles)
+		hashToKeywords[hash] = append(hashToKeywords[hash], kw)
 	}
 
-	items := make([]kwItem, 0, len(keywords))
-	for k, v := range keywords {
-		items = append(items, kwItem{k, v})
-	}
+	result := make(map[string]*keywordData, len(allKeywords))
 
-	// Sort by length (shortest first) - we keep the shortest/simplest form
-	sort.Slice(items, func(i, j int) bool {
-		return len(items[i].key) < len(items[j].key)
-	})
-
-	merged := make(map[string]*model.KeyWords)
-	toSkip := make(map[string]bool)
-
-	for i, item := range items {
-		if toSkip[item.key] {
+	for _, keywords := range hashToKeywords {
+		if len(keywords) == 1 {
+			kw := keywords[0]
+			result[kw.keyword] = kw
 			continue
 		}
 
-		// Check if this keyword is redundant with any shorter keyword we've already kept
-		isRedundant := false
-		for existingKey := range merged {
-			if isKeywordRedundant(item.key, existingKey) {
-				isRedundant = true
-				break
+		sort.Slice(keywords, func(i, j int) bool {
+			if keywords[i].totalFrequency != keywords[j].totalFrequency {
+				return keywords[i].totalFrequency > keywords[j].totalFrequency
 			}
-		}
+			return keywords[i].keyword < keywords[j].keyword
+		})
 
-		if !isRedundant {
-			merged[item.key] = item.kw
-
-			// Mark longer variations as redundant
-			for j := i + 1; j < len(items); j++ {
-				if isKeywordRedundant(items[j].key, item.key) {
-					toSkip[items[j].key] = true
-				}
-			}
-		}
+		best := keywords[0]
+		result[best.keyword] = best
 	}
 
-	return merged
+	return result
 }
 
-func isKeywordRedundant(longer, shorter string) bool {
-	longerLower := strings.ToLower(longer)
-	shorterLower := strings.ToLower(shorter)
-
-	// Same keyword
-	if longerLower == shorterLower {
-		return true
+func removeSubsets(allKeywords map[string]*keywordData) map[string]*keywordData {
+	type kwItem struct {
+		keyword string
+		data    *keywordData
 	}
 
-	// Extract core words (ignore stopwords and common prepositions)
-	longerWords := extractCoreWords(longerLower)
-	shorterWords := extractCoreWords(shorterLower)
+	items := make([]kwItem, 0, len(allKeywords))
+	for k, v := range allKeywords {
+		items = append(items, kwItem{k, v})
+	}
 
-	// If shorter is empty after filtering, not redundant
-	if len(shorterWords) == 0 {
+	sort.Slice(items, func(i, j int) bool {
+		if len(items[i].data.articles) != len(items[j].data.articles) {
+			return len(items[i].data.articles) > len(items[j].data.articles)
+		}
+		if items[i].data.totalFrequency != items[j].data.totalFrequency {
+			return items[i].data.totalFrequency > items[j].data.totalFrequency
+		}
+		return items[i].keyword < items[j].keyword
+	})
+
+	result := make(map[string]*keywordData, len(allKeywords))
+	toRemove := make(map[string]bool)
+
+	for i, item := range items {
+		if toRemove[item.keyword] {
+			continue
+		}
+
+		result[item.keyword] = item.data
+
+		for j := i + 1; j < len(items); j++ {
+			other := items[j]
+			if toRemove[other.keyword] {
+				continue
+			}
+
+			if isSubset(other.data.articleSet, item.data.articleSet) {
+				toRemove[other.keyword] = true
+			}
+		}
+	}
+
+	return result
+}
+
+func isSubset(smaller, larger map[string]bool) bool {
+	if len(smaller) > len(larger) {
 		return false
 	}
 
-	// Check if all core words from shorter appear in longer
-	matchCount := 0
-	for _, sw := range shorterWords {
-		for _, lw := range longerWords {
-			if sw == lw {
-				matchCount++
-				break
-			}
+	for articleID := range smaller {
+		if !larger[articleID] {
+			return false
 		}
 	}
-
-	// If all core words from shorter are in longer, it's redundant
-	// Example: "Trump" vs "Donald Trump" -> redundant
-	// Example: "Trump" vs "On Trump" -> redundant
-	return matchCount == len(shorterWords)
+	return true
 }
 
-func extractCoreWords(text string) []string {
-	// Remove common connecting words/prepositions
-	connectingWords := map[string]bool{
-		"on": true, "in": true, "at": true, "to": true, "for": true,
-		"of": true, "and": true, "or": true, "the": true, "a": true,
-		"is": true, "was": true, "are": true, "were": true, "be": true,
-		"an": true, "as": true, "by": true, "with": true, "from": true,
-		"über": true, "von": true, "im": true, "am": true, "der": true,
-		"die": true, "das": true, "den": true, "dem": true, "des": true,
-		"ein": true, "eine": true, "einer": true, "einem": true,
-		"ist": true, "sind": true, "war": true, "waren": true,
+func hashArticleSet(articleIDs []string) string {
+	sb := stringBuilderPool.Get().(*strings.Builder)
+	sb.Reset()
+	defer stringBuilderPool.Put(sb)
+
+	for _, id := range articleIDs {
+		sb.WriteString(id)
+		sb.WriteByte(',')
 	}
 
-	words := strings.Fields(text)
-	core := make([]string, 0, len(words))
-
-	for _, w := range words {
-		w = cleanWord(w)
-		if len(w) > 2 && !connectingWords[w] {
-			core = append(core, w)
-		}
-	}
-
-	return core
+	hash := sha256.Sum256([]byte(sb.String()))
+	return hex.EncodeToString(hash[:16])
 }
 
 func extractCandidates(cluster []model.Article, stopwords map[string]bool) map[string]int {
-	candidates := make(map[string]int)
+	candidates := make(map[string]int, 50)
 
 	for _, article := range cluster {
-		text := article.Title + " " + article.Description
+		sb := stringBuilderPool.Get().(*strings.Builder)
+		sb.Reset()
+		sb.WriteString(article.Title)
+		sb.WriteByte(' ')
+		sb.WriteString(article.Description)
+		text := sb.String()
+		stringBuilderPool.Put(sb)
+
 		words := tokenize(text)
 
-		// Score unigrams and bigrams
 		for i := 0; i < len(words); i++ {
 			w := words[i]
 			if len(w) > 3 && !stopwords[w] && !isCommonEntity(w) {
 				candidates[w] += 3
 			}
 
-			// Bigrams
 			if i < len(words)-1 {
 				w2 := words[i+1]
 				if len(w2) > 3 && !stopwords[w2] {
-					bigram := w + " " + w2
+					sb := stringBuilderPool.Get().(*strings.Builder)
+					sb.Reset()
+					sb.WriteString(w)
+					sb.WriteByte(' ')
+					sb.WriteString(w2)
+					bigram := sb.String()
+					stringBuilderPool.Put(sb)
 					candidates[bigram] += 5
 				}
 			}
@@ -258,7 +338,10 @@ func extractCandidates(cluster []model.Article, stopwords map[string]bool) map[s
 }
 
 func selectTopKeywords(candidates map[string]int, max int) []string {
-	// Sort by score descending
+	if len(candidates) == 0 {
+		return nil
+	}
+
 	type scoredKw struct {
 		keyword string
 		score   int
@@ -268,107 +351,95 @@ func selectTopKeywords(candidates map[string]int, max int) []string {
 	for k, v := range candidates {
 		list = append(list, scoredKw{k, v})
 	}
+
 	sort.Slice(list, func(i, j int) bool {
-		return list[i].score > list[j].score
+		if list[i].score != list[j].score {
+			return list[i].score > list[j].score
+		}
+		return list[i].keyword < list[j].keyword
 	})
 
-	// Select top keywords (less strict filtering here since we'll merge later)
-	selected := make([]string, 0, max)
-	for _, item := range list {
-		if len(selected) >= max {
-			break
-		}
-		selected = append(selected, item.keyword)
+	limit := max
+	if len(list) < max {
+		limit = len(list)
+	}
+
+	selected := make([]string, limit)
+	for i := 0; i < limit; i++ {
+		selected[i] = list[i].keyword
 	}
 	return selected
 }
 
-func persistKeywords(db *gorm.DB, keywords map[string]*model.KeyWords, clusters [][]model.Article) error {
+func persistKeywordsInTx(tx *gorm.DB, keywords map[string]*keywordData) error {
+	if len(keywords) == 0 {
+		return nil
+	}
+
 	kwList := make([]*model.KeyWords, 0, len(keywords))
 	kwNames := make([]string, 0, len(keywords))
 
-	for name, kw := range keywords {
-		kwList = append(kwList, kw)
+	for name := range keywords {
+		kwList = append(kwList, &model.KeyWords{
+			GormModel:  model.GormModel{ID: uuid.NewString()},
+			Keyword:    name,
+			LastUpdate: time.Now(),
+		})
 		kwNames = append(kwNames, name)
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		// Upsert keywords
-		if err := tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "keyword"}},
-			DoUpdates: clause.AssignmentColumns([]string{"last_update", "updated_at"}),
-		}).Omit("Articles").CreateInBatches(kwList, 100).Error; err != nil {
-			return err
-		}
+	if err := tx.Omit("Articles").CreateInBatches(kwList, 100).Error; err != nil {
+		return err
+	}
 
-		// Get actual DB IDs
-		var dbKws []model.KeyWords
-		if err := tx.Where("keyword IN ?", kwNames).Find(&dbKws).Error; err != nil {
-			return err
-		}
+	var dbKws []model.KeyWords
+	if err := tx.Select("id, keyword").Where("keyword IN ?", kwNames).Find(&dbKws).Error; err != nil {
+		return err
+	}
 
-		idMap := make(map[string]string, len(dbKws))
-		for _, dk := range dbKws {
-			idMap[dk.Keyword] = dk.ID
-		}
+	idMap := make(map[string]string, len(dbKws))
+	for _, dk := range dbKws {
+		idMap[dk.Keyword] = dk.ID
+	}
 
-		// Create join table entries
-		joinRows := buildJoinRows(clusters, idMap, keywords)
-		if len(joinRows) > 0 {
-			if err := tx.Table("article_keywords").Clauses(clause.OnConflict{
-				DoNothing: true,
-			}).CreateInBatches(joinRows, 500).Error; err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-}
-
-func buildJoinRows(clusters [][]model.Article, idMap map[string]string, validKeywords map[string]*model.KeyWords) []map[string]interface{} {
-	var joinRows []map[string]interface{}
-	stopwords := getCombinedStopwords()
-	titleFormatter := cases.Title(language.German)
-
-	for _, cluster := range clusters {
-		if len(cluster) < 2 {
+	joinRows := make([]map[string]interface{}, 0, len(keywords)*10)
+	for name, data := range keywords {
+		kwID, ok := idMap[name]
+		if !ok {
 			continue
 		}
 
-		candidates := extractCandidates(cluster, stopwords)
-		topKeywords := selectTopKeywords(candidates, 5)
+		for _, artID := range data.articles {
+			joinRows = append(joinRows, map[string]interface{}{
+				"key_words_id": kwID,
+				"article_id":   artID,
+			})
+		}
+	}
 
-		for _, kw := range topKeywords {
-			cleaned := cleanKeyword(kw)
-			formatted := titleFormatter.String(cleaned)
-
-			// Only use keywords that survived merging
-			if _, exists := validKeywords[formatted]; !exists {
-				continue
+	if len(joinRows) > 0 {
+		const batchSize = 500
+		for i := 0; i < len(joinRows); i += batchSize {
+			end := i + batchSize
+			if end > len(joinRows) {
+				end = len(joinRows)
 			}
 
-			if kwID, ok := idMap[formatted]; ok {
-				for _, art := range cluster {
-					joinRows = append(joinRows, map[string]interface{}{
-						"key_words_id": kwID,
-						"article_id":   art.ID,
-					})
-				}
+			if err := tx.Table("article_keywords").Create(joinRows[i:end]).Error; err != nil {
+				return err
 			}
 		}
 	}
-	return joinRows
+
+	return nil
 }
-
-// Helper functions
-
 func tokenize(text string) []string {
 	words := strings.Fields(strings.ToLower(text))
+	result := make([]string, len(words))
 	for i, w := range words {
-		words[i] = cleanWord(w)
+		result[i] = cleanWord(w)
 	}
-	return words
+	return result
 }
 
 func cleanWord(w string) string {
@@ -383,20 +454,14 @@ func cleanKeyword(kw string) string {
 	})
 }
 
-func getCombinedStopwords() map[string]bool {
-	combined := make(map[string]bool)
-	maps.Copy(combined, StopwordsEn)
-	maps.Copy(combined, StopwordsDe)
-	return combined
+var commonEntities = map[string]bool{
+	"news":    true,
+	"article": true,
+	"report":  true,
+	"says":    true,
+	"heute":   true,
 }
 
 func isCommonEntity(word string) bool {
-	common := map[string]bool{
-		"news":    true,
-		"article": true,
-		"report":  true,
-		"says":    true,
-		"heute":   true,
-	}
-	return common[word]
+	return commonEntities[word]
 }

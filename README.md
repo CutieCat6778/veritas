@@ -2,6 +2,10 @@
 
 A news-reading app for people who want to verify information across multiple sources. Veritas aggregates news from various German media outlets and links related articles together, enabling readers to compare coverage and form their own informed opinions.
 
+## This app is canceled
+
+Due to licencing issues with news sources, the Veritas project has been discontinued and is no longer maintained.
+
 ## Screenshots
 
 <p align="center">
@@ -21,6 +25,7 @@ A news-reading app for people who want to verify information across multiple sou
 ## Tech Stack
 
 ### Backend
+
 - **Language:** Go 1.24
 - **API:** GraphQL (gqlgen)
 - **Database:** PostgreSQL (GORM)
@@ -29,11 +34,13 @@ A news-reading app for people who want to verify information across multiple sou
 - **Scheduling:** Cron jobs for scraping and database maintenance
 
 ### iOS App
+
 - **Language:** Swift
 - **UI Framework:** SwiftUI
 - **GraphQL Client:** Apollo iOS
 
 ### News Sources
+
 - Tagesschau
 - Zeit
 - FAZ (Frankfurter Allgemeine Zeitung)
